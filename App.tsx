@@ -1,19 +1,36 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootNavigator } from './src/navigation';
+import { AuthProvider, useAuth, EventsProvider } from './src/store';
+import { Loading } from './src/components';
 
-export default function App() {
-  // TODO: Load from AsyncStorage
-  const [isOnboarded, setIsOnboarded] = useState(false);
+function AppContent() {
+  const { isLoading, isOnboarded } = useAuth();
+
+  if (isLoading) {
+    return <Loading fullScreen message="読み込み中..." />;
+  }
 
   return (
+    <>
+      <RootNavigator isOnboarded={isOnboarded} />
+      <StatusBar style="auto" />
+    </>
+  );
+}
+
+export default function App() {
+  return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <RootNavigator isOnboarded={isOnboarded} />
-        <StatusBar style="auto" />
-      </NavigationContainer>
+      <AuthProvider>
+        <EventsProvider>
+          <NavigationContainer>
+            <AppContent />
+          </NavigationContainer>
+        </EventsProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
