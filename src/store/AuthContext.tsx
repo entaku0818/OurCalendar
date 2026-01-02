@@ -1,13 +1,14 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User } from '../types';
+import { storageService } from '../services/storage';
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isOnboarded: boolean;
-  signIn: (user: User) => void;
-  signOut: () => void;
-  completeOnboarding: () => void;
+  signIn: (user: User, accessToken?: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  completeOnboarding: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,35 +19,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isOnboarded, setIsOnboarded] = useState(false);
 
   useEffect(() => {
-    // TODO: Load user from AsyncStorage
     const loadUser = async () => {
       try {
-        // Simulated loading
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        // Check AsyncStorage for existing user
-        setIsLoading(false);
+        const [savedUser, onboarded] = await Promise.all([
+          storageService.getUser(),
+          storageService.getIsOnboarded(),
+        ]);
+
+        if (savedUser) {
+          setUser(savedUser);
+        }
+        setIsOnboarded(onboarded);
       } catch (error) {
+        console.error('Error loading user:', error);
+      } finally {
         setIsLoading(false);
       }
     };
     loadUser();
   }, []);
 
-  const signIn = (userData: User) => {
+  const signIn = useCallback(async (userData: User, accessToken?: string) => {
     setUser(userData);
-    // TODO: Save to AsyncStorage
-  };
+    await storageService.setUser(userData);
+    if (accessToken) {
+      await storageService.setAccessToken(accessToken);
+    }
+  }, []);
 
-  const signOut = () => {
+  const signOut = useCallback(async () => {
     setUser(null);
     setIsOnboarded(false);
-    // TODO: Clear AsyncStorage
-  };
+    await storageService.clearAll();
+  }, []);
 
-  const completeOnboarding = () => {
+  const completeOnboarding = useCallback(async () => {
     setIsOnboarded(true);
-    // TODO: Save to AsyncStorage
-  };
+    await storageService.setIsOnboarded(true);
+  }, []);
 
   return (
     <AuthContext.Provider
