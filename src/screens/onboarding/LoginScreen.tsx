@@ -1,24 +1,39 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { OnboardingScreenProps } from '../../navigation/types';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
 import { APP_NAME } from '../../utils/constants';
+import { useGoogleAuth, useLineAuth } from '../../hooks';
+import { useAuth } from '../../store';
 
 type Props = OnboardingScreenProps<'Login'>;
 
 export default function LoginScreen() {
   const navigation = useNavigation<Props['navigation']>();
+  const { signIn: authSignIn } = useAuth();
+  const { isLoading: googleLoading, isReady: googleReady, signIn: googleSignIn } = useGoogleAuth();
+  const { isLoading: lineLoading, signIn: lineSignIn } = useLineAuth();
 
-  const handleGoogleLogin = () => {
-    // TODO: Implement Google login
-    navigation.navigate('GoogleConnect');
+  const handleGoogleLogin = async () => {
+    const result = await googleSignIn();
+
+    if (result) {
+      await authSignIn(result.user, result.accessToken);
+      navigation.navigate('GoogleConnect');
+    }
   };
 
-  const handleLineLogin = () => {
-    // TODO: Implement LINE login
-    navigation.navigate('GoogleConnect');
+  const handleLineLogin = async () => {
+    const result = await lineSignIn();
+
+    if (result) {
+      await authSignIn(result.user, result.accessToken);
+      navigation.navigate('GoogleConnect');
+    }
   };
+
+  const isLoading = googleLoading || lineLoading;
 
   return (
     <View style={styles.container}>
@@ -28,12 +43,28 @@ export default function LoginScreen() {
       </View>
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin}>
-          <Text style={styles.googleButtonText}>Googleでログイン</Text>
+        <TouchableOpacity
+          style={[styles.googleButton, !googleReady && styles.buttonDisabled]}
+          onPress={handleGoogleLogin}
+          disabled={isLoading || !googleReady}
+        >
+          {googleLoading ? (
+            <ActivityIndicator color={colors.text} />
+          ) : (
+            <Text style={styles.googleButtonText}>Googleでログイン</Text>
+          )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.lineButton} onPress={handleLineLogin}>
-          <Text style={styles.lineButtonText}>LINEでログイン</Text>
+        <TouchableOpacity
+          style={styles.lineButton}
+          onPress={handleLineLogin}
+          disabled={isLoading}
+        >
+          {lineLoading ? (
+            <ActivityIndicator color={colors.background} />
+          ) : (
+            <Text style={styles.lineButtonText}>LINEでログイン</Text>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -76,6 +107,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,
     alignItems: 'center',
+    minHeight: 50,
+    justifyContent: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   googleButtonText: {
     fontSize: fontSize.md,
@@ -87,6 +123,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,
     alignItems: 'center',
+    minHeight: 50,
+    justifyContent: 'center',
   },
   lineButtonText: {
     fontSize: fontSize.md,
