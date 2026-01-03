@@ -1,22 +1,61 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { OnboardingScreenProps } from '../../navigation/types';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
+import { useGoogleCalendar } from '../../hooks';
+import { useEvents } from '../../store';
+import { storageService } from '../../services';
 
 type Props = OnboardingScreenProps<'GoogleConnect'>;
 
 export default function GoogleConnectScreen() {
   const navigation = useNavigation<Props['navigation']>();
+  const [isConnecting, setIsConnecting] = useState(false);
+  const { setAccessToken, fetchEvents, isLoading } = useGoogleCalendar();
+  const { syncFromGoogle } = useEvents();
 
-  const handleConnect = () => {
-    // TODO: Implement Google Calendar API connection
-    navigation.navigate('SwipeSort');
+  const handleConnect = async () => {
+    setIsConnecting(true);
+
+    try {
+      // Get access token from storage (saved during login)
+      const accessToken = await storageService.getAccessToken();
+
+      if (!accessToken) {
+        Alert.alert('エラー', '再度ログインしてください');
+        setIsConnecting(false);
+        return;
+      }
+
+      // Set token and fetch events
+      setAccessToken(accessToken);
+      const events = await fetchEvents(30);
+
+      if (events.length > 0) {
+        // Store events for swipe sorting
+        syncFromGoogle(events);
+        navigation.navigate('SwipeSort');
+      } else {
+        // No events to sort, skip to group creation
+        Alert.alert(
+          '予定がありません',
+          '今後1ヶ月の予定がありませんでした。',
+          [{ text: 'OK', onPress: () => navigation.navigate('CreateGroup') }]
+        );
+      }
+    } catch (error) {
+      Alert.alert('エラー', 'カレンダーの連携に失敗しました');
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   const handleSkip = () => {
     navigation.navigate('CreateGroup');
   };
+
+  const loading = isConnecting || isLoading;
 
   return (
     <View style={styles.container}>
@@ -34,11 +73,23 @@ export default function GoogleConnectScreen() {
       </View>
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.connectButton} onPress={handleConnect}>
-          <Text style={styles.connectButtonText}>Googleカレンダーを連携</Text>
+        <TouchableOpacity
+          style={[styles.connectButton, loading && styles.buttonDisabled]}
+          onPress={handleConnect}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={colors.background} />
+          ) : (
+            <Text style={styles.connectButtonText}>Googleカレンダーを連携</Text>
+          )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+        <TouchableOpacity
+          style={styles.skipButton}
+          onPress={handleSkip}
+          disabled={loading}
+        >
           <Text style={styles.skipButtonText}>スキップ</Text>
         </TouchableOpacity>
       </View>
@@ -84,6 +135,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,
     alignItems: 'center',
+    minHeight: 50,
+    justifyContent: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   connectButtonText: {
     fontSize: fontSize.md,
