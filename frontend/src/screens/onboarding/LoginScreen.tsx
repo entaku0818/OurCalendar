@@ -13,7 +13,7 @@ export default function LoginScreen() {
   const navigation = useNavigation<Props['navigation']>();
   const { signIn: authSignIn } = useAuth();
   const { isLoading: googleLoading, isReady: googleReady, signIn: googleSignIn } = useGoogleAuth();
-  const { isLoading: lineLoading, signIn: lineSignIn } = useLineAuth();
+  const { isLoading: lineLoading, isReady: lineReady, signIn: lineSignIn } = useLineAuth();
 
   const handleGoogleLogin = async () => {
     const result = await googleSignIn();
@@ -56,9 +56,9 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.lineButton}
+          style={[styles.lineButton, !lineReady && styles.buttonDisabled]}
           onPress={handleLineLogin}
-          disabled={isLoading}
+          disabled={isLoading || !lineReady}
         >
           {lineLoading ? (
             <ActivityIndicator color={colors.background} />
