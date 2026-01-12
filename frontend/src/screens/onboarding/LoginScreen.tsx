@@ -16,11 +16,19 @@ export default function LoginScreen() {
   const { isLoading: lineLoading, isReady: lineReady, signIn: lineSignIn } = useLineAuth();
 
   const handleGoogleLogin = async () => {
-    const result = await googleSignIn();
+    console.log('Google login started');
+    try {
+      const result = await googleSignIn();
+      console.log('Google login result:', result ? 'success' : 'null');
 
-    if (result) {
-      await authSignIn(result.user, result.accessToken);
-      navigation.navigate('GoogleConnect');
+      if (result) {
+        console.log('User:', result.user.email);
+        await authSignIn(result.user, result.accessToken);
+        console.log('Auth signed in, navigating...');
+        navigation.navigate('GoogleConnect');
+      }
+    } catch (error) {
+      console.error('Google login error:', error);
     }
   };
 

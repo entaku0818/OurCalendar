@@ -65,9 +65,34 @@ export function useGoogleAuth() {
 
     try {
       const result = await promptAsync();
+      console.log('promptAsync result:', JSON.stringify(result, null, 2));
 
-      if (result?.type === 'success' && result.authentication?.accessToken) {
-        const accessToken = result.authentication.accessToken;
+      if (result?.type === 'success') {
+        let accessToken = result.authentication?.accessToken;
+
+        // If we got a code instead of token, exchange it
+        if (!accessToken && result.params?.code && request?.codeVerifier) {
+          console.log('Exchanging code for token...');
+          console.log('redirectUri:', request.redirectUri);
+          const tokenResult = await AuthSession.exchangeCodeAsync(
+            {
+              clientId: GOOGLE_IOS_CLIENT_ID!,
+              code: result.params.code,
+              redirectUri: request.redirectUri,
+              extraParams: {
+                code_verifier: request.codeVerifier,
+              },
+            },
+            { tokenEndpoint: 'https://oauth2.googleapis.com/token' }
+          );
+          accessToken = tokenResult.accessToken;
+          console.log('Token exchange successful');
+        }
+
+        if (!accessToken) {
+          throw new Error('No access token received');
+        }
+
         const userInfo = await fetchUserInfo(accessToken);
 
         const user: User = {
@@ -88,11 +113,12 @@ export function useGoogleAuth() {
         throw new Error('Authentication failed');
       }
     } catch (error) {
+      console.error('Google auth error:', error);
       const message = error instanceof Error ? error.message : 'ログインに失敗しました';
       setState({ isLoading: false, error: message });
       return null;
     }
-  }, [promptAsync]);
+  }, [promptAsync, request]);
 
   const signOut = useCallback(async () => {
     setState({ isLoading: true, error: null });
