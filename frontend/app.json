@@ -15,7 +15,16 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.entaku.ourcalendar"
+      "bundleIdentifier": "com.entaku.ourcalendar",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.912756714814-cldhsd139gvqjkrmgufljpop5b22hms3"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
