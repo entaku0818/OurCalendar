@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import * as Google from 'expo-auth-session/providers/google';
+import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { User } from '../types';
 
@@ -35,9 +36,9 @@ export function useGoogleAuth() {
   });
 
   const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: GOOGLE_CLIENT_ID,
     iosClientId: GOOGLE_IOS_CLIENT_ID,
     androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+    webClientId: GOOGLE_CLIENT_ID,
     scopes: [
       'openid',
       'profile',
