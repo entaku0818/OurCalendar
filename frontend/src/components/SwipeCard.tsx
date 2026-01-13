@@ -45,11 +45,19 @@ export default function SwipeCard({ event, onSwipe }: SwipeCardProps) {
         position.setValue({ x: gesture.dx, y: gesture.dy });
       },
       onPanResponderRelease: (_, gesture) => {
-        if (gesture.dx > SWIPE_THRESHOLD) {
+        const { dx, vx } = gesture;
+        console.log(`[SwipeCard] Release: dx=${dx.toFixed(0)}, vx=${vx.toFixed(2)}, threshold=${SWIPE_THRESHOLD}`);
+        console.log(`[SwipeCard] Right condition: ${dx} > ${SWIPE_THRESHOLD} = ${dx > SWIPE_THRESHOLD}`);
+        console.log(`[SwipeCard] Left condition: ${dx} < -${SWIPE_THRESHOLD} = ${dx < -SWIPE_THRESHOLD}`);
+
+        if (dx > SWIPE_THRESHOLD) {
+          console.log('[SwipeCard] → Swiping RIGHT (共有)');
           swipeOut('right');
-        } else if (gesture.dx < -SWIPE_THRESHOLD) {
+        } else if (dx < -SWIPE_THRESHOLD) {
+          console.log('[SwipeCard] ← Swiping LEFT (非公開)');
           swipeOut('left');
         } else {
+          console.log(`[SwipeCard] ↺ Reset (dx=${dx.toFixed(0)} didn't reach threshold)`);
           resetPosition();
         }
       },
@@ -58,17 +66,20 @@ export default function SwipeCard({ event, onSwipe }: SwipeCardProps) {
 
   const swipeOut = (direction: 'left' | 'right') => {
     const x = direction === 'right' ? SCREEN_WIDTH + 100 : -SCREEN_WIDTH - 100;
+    console.log(`[SwipeCard] swipeOut called: direction=${direction}, animating to x=${x}`);
     Animated.timing(position, {
       toValue: { x, y: 0 },
       duration: 250,
       useNativeDriver: false,
     }).start(() => {
+      console.log(`[SwipeCard] Animation complete, calling onSwipe(${direction})`);
       onSwipe(direction);
       position.setValue({ x: 0, y: 0 });
     });
   };
 
   const resetPosition = () => {
+    console.log('[SwipeCard] resetPosition called, returning to center');
     Animated.spring(position, {
       toValue: { x: 0, y: 0 },
       useNativeDriver: false,

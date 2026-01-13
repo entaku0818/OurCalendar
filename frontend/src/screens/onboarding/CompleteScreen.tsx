@@ -2,11 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
 import { APP_NAME } from '../../utils/constants';
+import { useAuth } from '../../store';
 
 export default function CompleteScreen() {
-  const handleStart = () => {
-    // TODO: Set onboarding complete flag and navigate to main
-    // This would typically update app state/storage
+  const { completeOnboarding } = useAuth();
+
+  const handleStart = async () => {
+    await completeOnboarding();
   };
 
   return (

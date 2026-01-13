@@ -58,7 +58,12 @@ export default function SwipeSortScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const handleSwipe = (direction: 'left' | 'right') => {
+    console.log(`[SwipeSortScreen] ========================================`);
+    console.log(`[SwipeSortScreen] handleSwipe called: direction=${direction}`);
+    console.log(`[SwipeSortScreen] Current event: "${currentEvent?.title}" (index: ${currentIndex})`);
+
     const isShared = direction === 'right';
+    console.log(`[SwipeSortScreen] Setting isShared=${isShared} (${isShared ? '共有' : '非公開'})`);
 
     // Update event
     const updatedEvents = [...events];
@@ -67,14 +72,24 @@ export default function SwipeSortScreen() {
       isShared,
     };
     setEvents(updatedEvents);
+    console.log(`[SwipeSortScreen] Events updated in local state`);
 
     // Move to next
     if (currentIndex < events.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+      const nextIndex = currentIndex + 1;
+      console.log(`[SwipeSortScreen] Moving to next: index ${nextIndex}, event: "${events[nextIndex]?.title}"`);
+      setCurrentIndex(nextIndex);
     } else {
       // All events sorted
+      console.log(`[SwipeSortScreen] All ${events.length} events sorted!`);
+      console.log(`[SwipeSortScreen] Results:`);
+      updatedEvents.forEach((e, i) => {
+        console.log(`  ${i + 1}. ${e.title}: ${e.isShared ? '共有' : '非公開'}`);
+      });
+      console.log(`[SwipeSortScreen] Navigating to CreateGroup...`);
       navigation.navigate('CreateGroup');
     }
+    console.log(`[SwipeSortScreen] ========================================`);
   };
 
   const currentEvent = events[currentIndex];
@@ -95,6 +110,7 @@ export default function SwipeSortScreen() {
       <View style={styles.cardContainer}>
         {currentEvent && (
           <SwipeCard
+            key={currentEvent.id}
             event={currentEvent}
             onSwipe={handleSwipe}
           />
