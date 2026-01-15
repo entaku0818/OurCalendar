@@ -5,21 +5,33 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { OnboardingScreenProps } from '../../navigation/types';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
+import { useGroups, useAuth } from '../../store';
 
 type Props = OnboardingScreenProps<'CreateGroup'>;
 
 export default function CreateGroupScreen() {
   const navigation = useNavigation<Props['navigation']>();
+  const { createGroup } = useGroups();
+  const { user } = useAuth();
   const [groupName, setGroupName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleCreate = () => {
-    if (groupName.trim()) {
-      // TODO: Create group in backend
-      navigation.navigate('InviteMembers', { groupId: 'new-group-id' });
+  const handleCreate = async () => {
+    if (!groupName.trim() || !user) return;
+
+    setIsLoading(true);
+    try {
+      const group = await createGroup(groupName.trim(), user.id);
+      navigation.navigate('InviteMembers', { groupId: group.id });
+    } catch (error) {
+      Alert.alert('エラー', 'グループの作成に失敗しました');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -59,11 +71,13 @@ export default function CreateGroupScreen() {
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.createButton, !groupName.trim() && styles.createButtonDisabled]}
+          style={[styles.createButton, (!groupName.trim() || isLoading) && styles.createButtonDisabled]}
           onPress={handleCreate}
-          disabled={!groupName.trim()}
+          disabled={!groupName.trim() || isLoading}
         >
-          <Text style={styles.createButtonText}>グループを作成</Text>
+          <Text style={styles.createButtonText}>
+            {isLoading ? '作成中...' : 'グループを作成'}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>

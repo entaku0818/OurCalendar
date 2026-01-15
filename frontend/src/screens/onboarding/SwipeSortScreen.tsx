@@ -1,99 +1,84 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { OnboardingScreenProps } from '../../navigation/types';
 import { colors, fontSize, spacing } from '../../utils/theme';
 import SwipeCard from '../../components/SwipeCard';
-import { CalendarEvent } from '../../types';
+import { useEvents } from '../../store';
 
 type Props = OnboardingScreenProps<'SwipeSort'>;
 
-// Mock data for demo
-const mockEvents: CalendarEvent[] = [
-  {
-    id: '1',
-    title: '歯医者の予約',
-    startAt: new Date('2025-01-15T10:00:00'),
-    endAt: new Date('2025-01-15T11:00:00'),
-    isFromGoogle: true,
-    isShared: false,
-    createdBy: 'user1',
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    title: '家族で外食',
-    startAt: new Date('2025-01-18T18:00:00'),
-    endAt: new Date('2025-01-18T20:00:00'),
-    isFromGoogle: true,
-    isShared: false,
-    createdBy: 'user1',
-    createdAt: new Date(),
-  },
-  {
-    id: '3',
-    title: '子供の授業参観',
-    startAt: new Date('2025-01-20T14:00:00'),
-    endAt: new Date('2025-01-20T15:30:00'),
-    isFromGoogle: true,
-    isShared: false,
-    createdBy: 'user1',
-    createdAt: new Date(),
-  },
-  {
-    id: '4',
-    title: '仕事の打ち合わせ',
-    startAt: new Date('2025-01-22T15:00:00'),
-    endAt: new Date('2025-01-22T16:00:00'),
-    isFromGoogle: true,
-    isShared: false,
-    createdBy: 'user1',
-    createdAt: new Date(),
-  },
-];
-
 export default function SwipeSortScreen() {
   const navigation = useNavigation<Props['navigation']>();
-  const [events, setEvents] = useState(mockEvents);
+  const { events: allEvents, toggleShared } = useEvents();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [sortedIds, setSortedIds] = useState<Set<string>>(new Set());
+
+  // Filter unsorted events (events that haven't been sorted yet)
+  const unsortedEvents = useMemo(() => {
+    return allEvents.filter((e) => !sortedIds.has(e.id));
+  }, [allEvents, sortedIds]);
+
+  const currentEvent = unsortedEvents[currentIndex];
+  const totalCount = unsortedEvents.length;
+  const progress = totalCount > 0 ? `${currentIndex + 1}/${totalCount}` : '0/0';
 
   const handleSwipe = (direction: 'left' | 'right') => {
+    if (!currentEvent) return;
+
     console.log(`[SwipeSortScreen] ========================================`);
     console.log(`[SwipeSortScreen] handleSwipe called: direction=${direction}`);
     console.log(`[SwipeSortScreen] Current event: "${currentEvent?.title}" (index: ${currentIndex})`);
 
-    const isShared = direction === 'right';
-    console.log(`[SwipeSortScreen] Setting isShared=${isShared} (${isShared ? '共有' : '非公開'})`);
+    const shouldShare = direction === 'right';
+    console.log(`[SwipeSortScreen] Setting isShared=${shouldShare} (${shouldShare ? '共有' : '非公開'})`);
 
-    // Update event
-    const updatedEvents = [...events];
-    updatedEvents[currentIndex] = {
-      ...updatedEvents[currentIndex],
-      isShared,
-    };
-    setEvents(updatedEvents);
-    console.log(`[SwipeSortScreen] Events updated in local state`);
+    // Update isShared status if it needs to change
+    if (currentEvent.isShared !== shouldShare) {
+      toggleShared(currentEvent.id);
+    }
+
+    // Mark as sorted
+    setSortedIds((prev) => new Set([...prev, currentEvent.id]));
 
     // Move to next
-    if (currentIndex < events.length - 1) {
+    if (currentIndex < totalCount - 1) {
       const nextIndex = currentIndex + 1;
-      console.log(`[SwipeSortScreen] Moving to next: index ${nextIndex}, event: "${events[nextIndex]?.title}"`);
+      console.log(`[SwipeSortScreen] Moving to next: index ${nextIndex}`);
       setCurrentIndex(nextIndex);
     } else {
       // All events sorted
-      console.log(`[SwipeSortScreen] All ${events.length} events sorted!`);
-      console.log(`[SwipeSortScreen] Results:`);
-      updatedEvents.forEach((e, i) => {
-        console.log(`  ${i + 1}. ${e.title}: ${e.isShared ? '共有' : '非公開'}`);
-      });
+      console.log(`[SwipeSortScreen] All events sorted!`);
       console.log(`[SwipeSortScreen] Navigating to CreateGroup...`);
       navigation.navigate('CreateGroup');
     }
     console.log(`[SwipeSortScreen] ========================================`);
   };
 
-  const currentEvent = events[currentIndex];
-  const progress = `${currentIndex + 1}/${events.length}`;
+  // If no events to sort, skip to next screen
+  if (totalCount === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>予定を振り分け</Text>
+        </View>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>振り分ける予定がありません</Text>
+          <Text style={styles.emptySubtext}>
+            後から設定画面で振り分けることができます
+          </Text>
+        </View>
+        <View style={styles.skipContainer}>
+          <Text
+            style={styles.skipButton}
+            onPress={() => navigation.navigate('CreateGroup')}
+          >
+            次へ進む →
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -194,5 +179,31 @@ const styles = StyleSheet.create({
   hintText: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  emptyText: {
+    fontSize: fontSize.lg,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  emptySubtext: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  skipContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+  skipButton: {
+    fontSize: fontSize.md,
+    color: colors.primary,
+    fontWeight: '600',
   },
 });

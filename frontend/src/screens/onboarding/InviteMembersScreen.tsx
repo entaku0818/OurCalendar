@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Share,
+  Alert,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { OnboardingStackParamList, OnboardingScreenProps } from '../../navigation/types';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
 import { APP_NAME } from '../../utils/constants';
+import { useGroups } from '../../store';
 
 type Props = OnboardingScreenProps<'InviteMembers'>;
 type RouteProps = RouteProp<OnboardingStackParamList, 'InviteMembers'>;
@@ -17,7 +20,11 @@ type RouteProps = RouteProp<OnboardingStackParamList, 'InviteMembers'>;
 export default function InviteMembersScreen() {
   const navigation = useNavigation<Props['navigation']>();
   const route = useRoute<RouteProps>();
-  const [inviteCode] = useState('ABC123'); // TODO: Generate from backend
+  const { getGroupById } = useGroups();
+
+  const { groupId } = route.params;
+  const group = getGroupById(groupId);
+  const inviteCode = group?.inviteCode || 'XXXXXX';
 
   const handleShare = async () => {
     try {
@@ -29,8 +36,9 @@ export default function InviteMembersScreen() {
     }
   };
 
-  const handleCopyCode = () => {
-    // TODO: Copy to clipboard
+  const handleCopyCode = async () => {
+    await Clipboard.setStringAsync(inviteCode);
+    Alert.alert('コピーしました', '招待コードをクリップボードにコピーしました');
   };
 
   const handleNext = () => {
@@ -59,10 +67,10 @@ export default function InviteMembersScreen() {
 
         <View style={styles.methodsContainer}>
           <Text style={styles.methodsTitle}>他の方法で招待</Text>
-          <TouchableOpacity style={styles.methodItem}>
+          <TouchableOpacity style={styles.methodItem} onPress={handleShare}>
             <Text style={styles.methodText}>LINEで送る</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.methodItem}>
+          <TouchableOpacity style={styles.methodItem} onPress={handleShare}>
             <Text style={styles.methodText}>メールで送る</Text>
           </TouchableOpacity>
         </View>
