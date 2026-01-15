@@ -26,7 +26,20 @@ export type MainTabParamList = {
   Settings: undefined;
 };
 
-// Home Stack (nested in Home tab)
+// Main Stack (wraps tabs and modal screens)
+export type MainStackParamList = {
+  Tabs: undefined;
+  EventDetail: { eventId: string };
+  CreateEvent: { date?: string };
+  GroupDetail: { groupId: string };
+  JoinGroup: undefined;
+  CreateGroup: undefined;
+  ProfileEdit: undefined;
+  NotificationSettings: undefined;
+  ResortEvents: undefined;
+};
+
+// Home Stack (nested in Home tab) - keeping for backward compatibility
 export type HomeStackParamList = {
   Calendar: undefined;
   EventDetail: { eventId: string };
@@ -40,10 +53,13 @@ export type RootStackScreenProps<T extends keyof RootStackParamList> =
 export type OnboardingScreenProps<T extends keyof OnboardingStackParamList> =
   NativeStackScreenProps<OnboardingStackParamList, T>;
 
+export type MainStackScreenProps<T extends keyof MainStackParamList> =
+  NativeStackScreenProps<MainStackParamList, T>;
+
 export type MainTabScreenProps<T extends keyof MainTabParamList> =
   CompositeScreenProps<
     BottomTabScreenProps<MainTabParamList, T>,
-    RootStackScreenProps<keyof RootStackParamList>
+    NativeStackScreenProps<MainStackParamList>
   >;
 
 // Declare global navigation types

@@ -3,7 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from './types';
 
 import OnboardingNavigator from './OnboardingNavigator';
-import MainTabNavigator from './MainTabNavigator';
+import MainStackNavigator from './MainStackNavigator';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -15,7 +15,7 @@ export default function RootNavigator({ isOnboarded }: RootNavigatorProps) {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {isOnboarded ? (
-        <Stack.Screen name="Main" component={MainTabNavigator} />
+        <Stack.Screen name="Main" component={MainStackNavigator} />
       ) : (
         <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
       )}
