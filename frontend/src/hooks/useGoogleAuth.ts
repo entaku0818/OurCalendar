@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { Platform } from 'react-native';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
@@ -11,6 +12,15 @@ WebBrowser.maybeCompleteAuthSession();
 const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
 const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+
+// Create redirect URI for iOS native - uses the reversed client ID
+// Format: com.googleusercontent.apps.CLIENT_ID_PREFIX:/oauthredirect
+const getIosRedirectUri = () => {
+  if (!GOOGLE_IOS_CLIENT_ID) return undefined;
+  // Extract the part before .apps.googleusercontent.com
+  const clientIdPrefix = GOOGLE_IOS_CLIENT_ID.replace('.apps.googleusercontent.com', '');
+  return `com.googleusercontent.apps.${clientIdPrefix}:/oauthredirect`;
+};
 
 interface GoogleAuthState {
   isLoading: boolean;
@@ -35,10 +45,13 @@ export function useGoogleAuth() {
     error: null,
   });
 
+  const iosRedirectUri = getIosRedirectUri();
+
   const [request, response, promptAsync] = Google.useAuthRequest({
     iosClientId: GOOGLE_IOS_CLIENT_ID,
     androidClientId: GOOGLE_ANDROID_CLIENT_ID,
     webClientId: GOOGLE_CLIENT_ID,
+    redirectUri: Platform.OS === 'ios' ? iosRedirectUri : undefined,
     scopes: [
       'openid',
       'profile',
@@ -47,6 +60,16 @@ export function useGoogleAuth() {
       'https://www.googleapis.com/auth/calendar.events',
     ],
   });
+
+  // Debug: Log the redirect URI
+  useEffect(() => {
+    console.log('========================================');
+    console.log('Platform:', Platform.OS);
+    console.log('iOS Redirect URI:', iosRedirectUri);
+    console.log('Actual Redirect URI:', request?.redirectUri);
+    console.log('Add this URI to Google Cloud Console!');
+    console.log('========================================');
+  }, [request, iosRedirectUri]);
 
   const fetchUserInfo = async (accessToken: string): Promise<GoogleUserInfo> => {
     const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
