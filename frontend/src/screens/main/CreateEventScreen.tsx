@@ -7,34 +7,49 @@ import {
   TouchableOpacity,
   ScrollView,
   Switch,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
+import { useEvents, useAuth } from '../../store';
+import { MainStackParamList } from '../../navigation/types';
+
+type RouteProps = RouteProp<MainStackParamList, 'CreateEvent'>;
 
 export default function CreateEventScreen() {
   const navigation = useNavigation();
+  const route = useRoute<RouteProps>();
+  const { addEvent } = useEvents();
+  const { user } = useAuth();
+
+  const initialDate = route.params?.date ? new Date(route.params.date) : new Date();
+
   const [title, setTitle] = useState('');
   const [memo, setMemo] = useState('');
   const [isShared, setIsShared] = useState(true);
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date(Date.now() + 60 * 60 * 1000));
+  const [startDate, setStartDate] = useState(initialDate);
+  const [endDate, setEndDate] = useState(new Date(initialDate.getTime() + 60 * 60 * 1000));
+
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   const handleSave = () => {
-    if (!title.trim()) return;
+    if (!title.trim() || !user) return;
 
-    // TODO: Save event using EventsContext
-    const newEvent = {
+    addEvent({
       title: title.trim(),
-      memo: memo.trim(),
+      memo: memo.trim() || undefined,
       startAt: startDate,
       endAt: endDate,
       isShared,
       isFromGoogle: false,
-      createdBy: 'user',
-    };
+      createdBy: user.id,
+    });
 
-    console.log('Creating event:', newEvent);
     navigation.goBack();
   };
 
@@ -51,6 +66,62 @@ export default function CreateEventScreen() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const onStartDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowStartDatePicker(false);
+    if (selectedDate) {
+      const newDate = new Date(startDate);
+      newDate.setFullYear(selectedDate.getFullYear());
+      newDate.setMonth(selectedDate.getMonth());
+      newDate.setDate(selectedDate.getDate());
+      setStartDate(newDate);
+
+      // Update end date if start is after end
+      if (newDate > endDate) {
+        setEndDate(new Date(newDate.getTime() + 60 * 60 * 1000));
+      }
+    }
+  };
+
+  const onStartTimeChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowStartTimePicker(false);
+    if (selectedDate) {
+      const newDate = new Date(startDate);
+      newDate.setHours(selectedDate.getHours());
+      newDate.setMinutes(selectedDate.getMinutes());
+      setStartDate(newDate);
+
+      // Update end date if start is after end
+      if (newDate >= endDate) {
+        setEndDate(new Date(newDate.getTime() + 60 * 60 * 1000));
+      }
+    }
+  };
+
+  const onEndDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowEndDatePicker(false);
+    if (selectedDate) {
+      const newDate = new Date(endDate);
+      newDate.setFullYear(selectedDate.getFullYear());
+      newDate.setMonth(selectedDate.getMonth());
+      newDate.setDate(selectedDate.getDate());
+      if (newDate >= startDate) {
+        setEndDate(newDate);
+      }
+    }
+  };
+
+  const onEndTimeChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowEndTimePicker(false);
+    if (selectedDate) {
+      const newDate = new Date(endDate);
+      newDate.setHours(selectedDate.getHours());
+      newDate.setMinutes(selectedDate.getMinutes());
+      if (newDate > startDate) {
+        setEndDate(newDate);
+      }
+    }
   };
 
   return (
@@ -77,6 +148,7 @@ export default function CreateEventScreen() {
             placeholderTextColor={colors.textLight}
             value={title}
             onChangeText={setTitle}
+            autoFocus
           />
         </View>
 
@@ -84,10 +156,16 @@ export default function CreateEventScreen() {
           <View style={styles.row}>
             <Text style={styles.label}>開始</Text>
             <View style={styles.dateTimeContainer}>
-              <TouchableOpacity style={styles.dateButton}>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setShowStartDatePicker(true)}
+              >
                 <Text style={styles.dateText}>{formatDate(startDate)}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.timeButton}>
+              <TouchableOpacity
+                style={styles.timeButton}
+                onPress={() => setShowStartTimePicker(true)}
+              >
                 <Text style={styles.timeText}>{formatTime(startDate)}</Text>
               </TouchableOpacity>
             </View>
@@ -96,10 +174,16 @@ export default function CreateEventScreen() {
           <View style={styles.row}>
             <Text style={styles.label}>終了</Text>
             <View style={styles.dateTimeContainer}>
-              <TouchableOpacity style={styles.dateButton}>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setShowEndDatePicker(true)}
+              >
                 <Text style={styles.dateText}>{formatDate(endDate)}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.timeButton}>
+              <TouchableOpacity
+                style={styles.timeButton}
+                onPress={() => setShowEndTimePicker(true)}
+              >
                 <Text style={styles.timeText}>{formatTime(endDate)}</Text>
               </TouchableOpacity>
             </View>
@@ -136,6 +220,40 @@ export default function CreateEventScreen() {
           />
         </View>
       </ScrollView>
+
+      {showStartDatePicker && (
+        <DateTimePicker
+          value={startDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={onStartDateChange}
+        />
+      )}
+      {showStartTimePicker && (
+        <DateTimePicker
+          value={startDate}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={onStartTimeChange}
+        />
+      )}
+      {showEndDatePicker && (
+        <DateTimePicker
+          value={endDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={onEndDateChange}
+          minimumDate={startDate}
+        />
+      )}
+      {showEndTimePicker && (
+        <DateTimePicker
+          value={endDate}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={onEndTimeChange}
+        />
+      )}
     </SafeAreaView>
   );
 }

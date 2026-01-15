@@ -1,51 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
-import { CalendarEvent } from '../../types';
+import { useEvents, useAuth } from '../../store';
+import { MainStackParamList } from '../../navigation/types';
 
-// Mock data
-const mockEvents: CalendarEvent[] = [
-  {
-    id: '1',
-    title: '家族で外食',
-    startAt: new Date('2025-01-15T18:00:00'),
-    endAt: new Date('2025-01-15T20:00:00'),
-    isFromGoogle: true,
-    isShared: true,
-    createdBy: 'user1',
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    title: '子供の授業参観',
-    startAt: new Date('2025-01-18T14:00:00'),
-    endAt: new Date('2025-01-18T15:30:00'),
-    isFromGoogle: true,
-    isShared: true,
-    createdBy: 'user2',
-    createdAt: new Date(),
-  },
-  {
-    id: '3',
-    title: '買い物',
-    startAt: new Date('2025-01-20T10:00:00'),
-    endAt: new Date('2025-01-20T12:00:00'),
-    isFromGoogle: false,
-    isShared: true,
-    createdBy: 'user1',
-    createdAt: new Date(),
-  },
-];
+type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 export default function HomeScreen() {
+  const navigation = useNavigation<NavigationProp>();
+  const { events, isSyncing, fetchGoogleCalendarEvents } = useEvents();
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
+
+  // Fetch Google Calendar events on mount if user has Google linked
+  useEffect(() => {
+    if (user?.googleId) {
+      fetchGoogleCalendarEvents();
+    }
+  }, [user?.googleId, fetchGoogleCalendarEvents]);
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -85,15 +67,27 @@ export default function HomeScreen() {
   };
 
   const hasEvents = (date: Date) => {
-    return mockEvents.some(
+    return events.some(
       (event) => event.startAt.toDateString() === date.toDateString()
     );
   };
 
   const getEventsForDate = (date: Date) => {
-    return mockEvents.filter(
+    return events.filter(
       (event) => event.startAt.toDateString() === date.toDateString()
     );
+  };
+
+  const handleTodayPress = () => {
+    setSelectedDate(new Date());
+  };
+
+  const handleAddPress = () => {
+    navigation.navigate('CreateEvent', { date: selectedDate.toISOString() });
+  };
+
+  const handleEventPress = (eventId: string) => {
+    navigation.navigate('EventDetail', { eventId });
   };
 
   const todayEvents = getEventsForDate(selectedDate);
@@ -102,9 +96,24 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.monthTitle}>{formatMonth(selectedDate)}</Text>
-        <TouchableOpacity style={styles.todayButton}>
-          <Text style={styles.todayButtonText}>今日</Text>
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          {user?.googleId && (
+            <TouchableOpacity
+              style={styles.syncButton}
+              onPress={fetchGoogleCalendarEvents}
+              disabled={isSyncing}
+            >
+              {isSyncing ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={styles.syncButtonText}>同期</Text>
+              )}
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.todayButton} onPress={handleTodayPress}>
+            <Text style={styles.todayButtonText}>今日</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.calendar}>
@@ -167,14 +176,25 @@ export default function HomeScreen() {
             <Text style={styles.noEvents}>予定はありません</Text>
           ) : (
             todayEvents.map((event) => (
-              <TouchableOpacity key={event.id} style={styles.eventItem}>
+              <TouchableOpacity
+                key={event.id}
+                style={styles.eventItem}
+                onPress={() => handleEventPress(event.id)}
+              >
                 <View style={styles.eventTime}>
                   <Text style={styles.eventTimeText}>
                     {formatTime(event.startAt)}
                   </Text>
                 </View>
                 <View style={styles.eventContent}>
-                  <Text style={styles.eventTitle}>{event.title}</Text>
+                  <View style={styles.eventTitleRow}>
+                    <Text style={styles.eventTitle}>{event.title}</Text>
+                    {event.isFromGoogle && (
+                      <View style={styles.googleBadge}>
+                        <Text style={styles.googleBadgeText}>G</Text>
+                      </View>
+                    )}
+                  </View>
                   {event.isShared && (
                     <Text style={styles.eventShared}>共有中</Text>
                   )}
@@ -185,7 +205,7 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      <TouchableOpacity style={styles.addButton}>
+      <TouchableOpacity style={styles.addButton} onPress={handleAddPress}>
         <Text style={styles.addButtonText}>+</Text>
       </TouchableOpacity>
     </SafeAreaView>
@@ -208,6 +228,23 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xl,
     fontWeight: 'bold',
     color: colors.text,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  syncButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.full,
+    minWidth: 50,
+    alignItems: 'center',
+  },
+  syncButtonText: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: '600',
   },
   todayButton: {
     paddingHorizontal: spacing.md,
@@ -319,11 +356,30 @@ const styles = StyleSheet.create({
   eventContent: {
     flex: 1,
   },
+  eventTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
   eventTitle: {
     fontSize: fontSize.md,
     color: colors.text,
     fontWeight: '500',
-    marginBottom: spacing.xs,
+    flex: 1,
+  },
+  googleBadge: {
+    backgroundColor: '#4285F4',
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  googleBadgeText: {
+    fontSize: 10,
+    color: colors.background,
+    fontWeight: 'bold',
   },
   eventShared: {
     fontSize: fontSize.xs,

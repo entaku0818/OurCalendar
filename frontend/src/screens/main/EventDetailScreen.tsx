@@ -10,28 +10,33 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
-import { CalendarEvent } from '../../types';
+import { useEvents } from '../../store';
+import { MainStackParamList } from '../../navigation/types';
 
-// Mock event for demo
-const mockEvent: CalendarEvent = {
-  id: '1',
-  title: '家族で外食',
-  startAt: new Date('2025-01-15T18:00:00'),
-  endAt: new Date('2025-01-15T20:00:00'),
-  memo: 'イタリアンレストラン「ベラ・イタリア」\n予約済み: 4名',
-  isFromGoogle: true,
-  isShared: true,
-  createdBy: 'user1',
-  createdAt: new Date(),
-};
+type RouteProps = RouteProp<MainStackParamList, 'EventDetail'>;
 
 export default function EventDetailScreen() {
   const navigation = useNavigation();
-  // const route = useRoute();
-  // const { eventId } = route.params;
+  const route = useRoute<RouteProps>();
+  const { events, deleteEvent, toggleShared } = useEvents();
 
-  // TODO: Fetch event from context using eventId
-  const event = mockEvent;
+  const { eventId } = route.params;
+  const event = events.find((e) => e.id === eventId);
+
+  if (!event) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.backButton}>← 戻る</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.notFound}>
+          <Text style={styles.notFoundText}>予定が見つかりません</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('ja-JP', {
@@ -49,10 +54,6 @@ export default function EventDetailScreen() {
     });
   };
 
-  const handleEdit = () => {
-    // TODO: Navigate to edit screen
-  };
-
   const handleDelete = () => {
     Alert.alert(
       '予定を削除',
@@ -63,7 +64,7 @@ export default function EventDetailScreen() {
           text: '削除',
           style: 'destructive',
           onPress: () => {
-            // TODO: Delete event from context
+            deleteEvent(eventId);
             navigation.goBack();
           },
         },
@@ -72,7 +73,7 @@ export default function EventDetailScreen() {
   };
 
   const handleToggleShare = () => {
-    // TODO: Toggle share status
+    toggleShared(eventId);
   };
 
   return (
@@ -81,9 +82,7 @@ export default function EventDetailScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>← 戻る</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleEdit}>
-          <Text style={styles.editButton}>編集</Text>
-        </TouchableOpacity>
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView style={styles.content}>
@@ -165,10 +164,14 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     color: colors.primary,
   },
-  editButton: {
+  notFound: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notFoundText: {
     fontSize: fontSize.md,
-    color: colors.primary,
-    fontWeight: '600',
+    color: colors.textSecondary,
   },
   content: {
     flex: 1,
