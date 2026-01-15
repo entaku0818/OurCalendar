@@ -244,6 +244,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    borderRadius: borderRadius.full,
   },
   todayCell: {
     backgroundColor: colors.primary,

@@ -42,7 +42,7 @@ export default function SwipeCard({ event, onSwipe }: SwipeCardProps) {
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (_, gesture) => {
-        position.setValue({ x: gesture.dx, y: gesture.dy });
+        position.setValue({ x: gesture.dx, y: 0 });
       },
       onPanResponderRelease: (_, gesture) => {
         const { dx, vx } = gesture;
