@@ -6,9 +6,17 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
+import { useAuth } from '../../store';
+import { MainStackParamList } from '../../navigation/types';
+import { APP_VERSION } from '../../utils/constants';
+
+type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 interface SettingItemProps {
   title: string;
@@ -34,7 +42,24 @@ function SettingItem({ title, subtitle, onPress, rightElement }: SettingItemProp
 }
 
 export default function SettingsScreen() {
+  const navigation = useNavigation<NavigationProp>();
+  const { user, signOut } = useAuth();
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
+
+  const handleLogout = () => {
+    Alert.alert(
+      'ログアウト',
+      'ログアウトしてもよろしいですか？',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: 'ログアウト',
+          style: 'destructive',
+          onPress: () => signOut(),
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -50,12 +75,12 @@ export default function SettingsScreen() {
             <SettingItem
               title="プロフィール"
               subtitle="名前、アイコンを変更"
-              onPress={() => {}}
+              onPress={() => navigation.navigate('ProfileEdit')}
             />
             <SettingItem
               title="プランを変更"
               subtitle="無料プラン"
-              onPress={() => {}}
+              onPress={() => Alert.alert('準備中', 'この機能は準備中です')}
             />
           </View>
         </View>
@@ -66,13 +91,13 @@ export default function SettingsScreen() {
           <View style={styles.sectionContent}>
             <SettingItem
               title="Googleカレンダー連携"
-              subtitle="連携中: example@gmail.com"
-              onPress={() => {}}
+              subtitle={user?.email ? `連携中: ${user.email}` : '未連携'}
+              onPress={() => Alert.alert('準備中', 'この機能は準備中です')}
             />
             <SettingItem
               title="予定の振り分け"
               subtitle="共有/非公開を再設定"
-              onPress={() => {}}
+              onPress={() => navigation.navigate('ResortEvents')}
             />
           </View>
         </View>
@@ -94,7 +119,7 @@ export default function SettingsScreen() {
             <SettingItem
               title="通知設定"
               subtitle="リマインダー、グループ通知"
-              onPress={() => {}}
+              onPress={() => navigation.navigate('NotificationSettings')}
             />
           </View>
         </View>
@@ -103,15 +128,15 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>その他</Text>
           <View style={styles.sectionContent}>
-            <SettingItem title="利用規約" onPress={() => {}} />
-            <SettingItem title="プライバシーポリシー" onPress={() => {}} />
-            <SettingItem title="お問い合わせ" onPress={() => {}} />
-            <SettingItem title="バージョン" subtitle="1.0.0" />
+            <SettingItem title="利用規約" onPress={() => Alert.alert('準備中', 'この機能は準備中です')} />
+            <SettingItem title="プライバシーポリシー" onPress={() => Alert.alert('準備中', 'この機能は準備中です')} />
+            <SettingItem title="お問い合わせ" onPress={() => Alert.alert('準備中', 'この機能は準備中です')} />
+            <SettingItem title="バージョン" subtitle={APP_VERSION} />
           </View>
         </View>
 
         {/* Logout */}
-        <TouchableOpacity style={styles.logoutButton}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutButtonText}>ログアウト</Text>
         </TouchableOpacity>
       </ScrollView>

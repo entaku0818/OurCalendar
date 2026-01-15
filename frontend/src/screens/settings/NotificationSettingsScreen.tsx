@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
+import { storageService, NotificationSettings } from '../../services/storage';
 
 interface SettingRowProps {
   title: string;
@@ -38,7 +39,7 @@ function SettingRow({ title, description, value, onValueChange }: SettingRowProp
 
 export default function NotificationSettingsScreen() {
   const navigation = useNavigation();
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<NotificationSettings>({
     pushEnabled: true,
     eventReminder: true,
     newEvent: true,
@@ -47,9 +48,23 @@ export default function NotificationSettingsScreen() {
     dailySummary: false,
   });
 
-  const updateSetting = (key: keyof typeof settings, value: boolean) => {
-    setSettings((prev) => ({ ...prev, [key]: value }));
-    // TODO: Save to storage
+  useEffect(() => {
+    const loadSettings = async () => {
+      const appSettings = await storageService.getSettings();
+      setSettings(appSettings.notifications);
+    };
+    loadSettings();
+  }, []);
+
+  const updateSetting = async (key: keyof NotificationSettings, value: boolean) => {
+    const newSettings = { ...settings, [key]: value };
+    setSettings(newSettings);
+
+    const appSettings = await storageService.getSettings();
+    await storageService.setSettings({
+      ...appSettings,
+      notifications: newSettings,
+    });
   };
 
   return (

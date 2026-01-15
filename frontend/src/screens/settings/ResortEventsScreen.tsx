@@ -1,68 +1,50 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { colors, fontSize, spacing } from '../../utils/theme';
 import { SwipeCard, Button } from '../../components';
-import { CalendarEvent } from '../../types';
-
-// Mock data - would come from context
-const mockEvents: CalendarEvent[] = [
-  {
-    id: '1',
-    title: '歯医者の予約',
-    startAt: new Date('2025-01-15T10:00:00'),
-    endAt: new Date('2025-01-15T11:00:00'),
-    isFromGoogle: true,
-    isShared: true,
-    createdBy: 'user1',
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    title: '仕事の打ち合わせ',
-    startAt: new Date('2025-01-18T14:00:00'),
-    endAt: new Date('2025-01-18T15:00:00'),
-    isFromGoogle: true,
-    isShared: false,
-    createdBy: 'user1',
-    createdAt: new Date(),
-  },
-  {
-    id: '3',
-    title: '家族旅行',
-    startAt: new Date('2025-01-25T09:00:00'),
-    endAt: new Date('2025-01-27T18:00:00'),
-    isFromGoogle: true,
-    isShared: true,
-    createdBy: 'user1',
-    createdAt: new Date(),
-  },
-];
+import { useEvents } from '../../store';
 
 export default function ResortEventsScreen() {
   const navigation = useNavigation();
-  const [events, setEvents] = useState(mockEvents);
+  const { events: allEvents, toggleShared } = useEvents();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [sortedIds, setSortedIds] = useState<Set<string>>(new Set());
   const [isComplete, setIsComplete] = useState(false);
+  const [sortedCount, setSortedCount] = useState(0);
+  const [sharedCount, setSharedCount] = useState(0);
+
+  const unsortedEvents = useMemo(() => {
+    return allEvents.filter((e) => !sortedIds.has(e.id));
+  }, [allEvents, sortedIds]);
+
+  const currentEvent = unsortedEvents[currentIndex];
+  const totalCount = unsortedEvents.length;
+  const progress = totalCount > 0 ? `${currentIndex + 1}/${totalCount}` : '0/0';
 
   const handleSwipe = (direction: 'left' | 'right') => {
-    const isShared = direction === 'right';
+    if (!currentEvent) return;
 
-    // Update event
-    const updatedEvents = [...events];
-    updatedEvents[currentIndex] = {
-      ...updatedEvents[currentIndex],
-      isShared,
-    };
-    setEvents(updatedEvents);
+    const shouldShare = direction === 'right';
+
+    // Update isShared status if it needs to change
+    if (currentEvent.isShared !== shouldShare) {
+      toggleShared(currentEvent.id);
+    }
+
+    // Track sorting
+    setSortedIds((prev) => new Set([...prev, currentEvent.id]));
+    setSortedCount((prev) => prev + 1);
+    if (shouldShare) {
+      setSharedCount((prev) => prev + 1);
+    }
 
     // Move to next
-    if (currentIndex < events.length - 1) {
+    if (currentIndex < totalCount - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
       setIsComplete(true);
-      // TODO: Save to context/storage
     }
   };
 
@@ -70,8 +52,32 @@ export default function ResortEventsScreen() {
     navigation.goBack();
   };
 
-  const currentEvent = events[currentIndex];
-  const progress = `${currentIndex + 1}/${events.length}`;
+  // Handle empty state
+  if (totalCount === 0 && !isComplete) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.backButton}>← 戻る</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>予定の振り分け</Text>
+          <View style={{ width: 50 }} />
+        </View>
+        <View style={styles.completeContainer}>
+          <Text style={styles.completeEmoji}>📅</Text>
+          <Text style={styles.completeTitle}>予定がありません</Text>
+          <Text style={styles.completeDescription}>
+            振り分ける予定がありません
+          </Text>
+          <Button
+            title="戻る"
+            onPress={handleComplete}
+            style={styles.completeButton}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (isComplete) {
     return (
@@ -80,7 +86,7 @@ export default function ResortEventsScreen() {
           <Text style={styles.completeEmoji}>✅</Text>
           <Text style={styles.completeTitle}>振り分け完了！</Text>
           <Text style={styles.completeDescription}>
-            {events.filter((e) => e.isShared).length}件の予定を共有設定にしました
+            {sharedCount}件の予定を共有設定にしました
           </Text>
           <Button
             title="完了"
@@ -142,6 +148,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
+  },
+  backButton: {
+    fontSize: fontSize.md,
+    color: colors.primary,
+  },
+  headerTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: '600',
+    color: colors.text,
   },
   title: {
     fontSize: fontSize.xl,
