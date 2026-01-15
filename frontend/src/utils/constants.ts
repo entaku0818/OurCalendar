@@ -1,6 +1,7 @@
 // App Constants
 export const APP_NAME = 'みんなのカレンダー';
 export const APP_NAME_EN = 'Our Calendar';
+export const APP_VERSION = '1.0.0';
 
 // Free Plan Limits
 export const FREE_PLAN = {

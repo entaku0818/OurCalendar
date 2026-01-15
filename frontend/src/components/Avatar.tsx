@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, ViewStyle } from 'react-native';
+import { View, Text, Image, StyleSheet, ViewStyle, ImageStyle } from 'react-native';
 import { colors, fontSize } from '../utils/theme';
 
 type AvatarSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -37,28 +37,27 @@ export default function Avatar({
   const textSize = fontSizeMap[size];
   const initial = name ? name.charAt(0).toUpperCase() : '?';
 
-  const containerStyle = [
-    styles.container,
-    {
+  const containerStyle: ViewStyle = {
+    ...styles.container,
+    width: dimension,
+    height: dimension,
+    borderRadius: dimension / 2,
+    backgroundColor,
+  };
+
+  if (imageUrl) {
+    const imageStyle: ImageStyle = {
       width: dimension,
       height: dimension,
       borderRadius: dimension / 2,
-      backgroundColor,
-    },
-    style,
-  ];
+      resizeMode: 'cover',
+    };
 
-  if (imageUrl) {
-    return (
-      <Image
-        source={{ uri: imageUrl }}
-        style={[containerStyle, styles.image]}
-      />
-    );
+    return <Image source={{ uri: imageUrl }} style={imageStyle} />;
   }
 
   return (
-    <View style={containerStyle}>
+    <View style={[containerStyle, style]}>
       <Text style={[styles.initial, { fontSize: textSize }]}>{initial}</Text>
     </View>
   );
