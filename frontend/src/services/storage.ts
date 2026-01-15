@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { User, CalendarEvent, Group } from '../types';
+import { User, CalendarEvent, Group, GroupMember } from '../types';
 
 // Storage keys
 const KEYS = {
@@ -8,17 +8,36 @@ const KEYS = {
   ACCESS_TOKEN: '@access_token',
   EVENTS: '@events',
   GROUPS: '@groups',
+  GROUP_MEMBERS: '@group_members',
   SETTINGS: '@settings',
 } as const;
 
 // Settings type
-interface AppSettings {
-  notificationsEnabled: boolean;
+export interface NotificationSettings {
+  pushEnabled: boolean;
+  eventReminder: boolean;
+  newEvent: boolean;
+  eventUpdate: boolean;
+  memberJoined: boolean;
+  dailySummary: boolean;
+}
+
+export interface AppSettings {
+  notifications: NotificationSettings;
   reminderTime: number; // minutes before event
 }
 
+const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
+  pushEnabled: true,
+  eventReminder: true,
+  newEvent: true,
+  eventUpdate: true,
+  memberJoined: true,
+  dailySummary: false,
+};
+
 const DEFAULT_SETTINGS: AppSettings = {
-  notificationsEnabled: true,
+  notifications: DEFAULT_NOTIFICATION_SETTINGS,
   reminderTime: 30,
 };
 
@@ -147,6 +166,30 @@ class StorageService {
       await AsyncStorage.setItem(KEYS.GROUPS, JSON.stringify(groups));
     } catch (error) {
       console.error('Error setting groups:', error);
+    }
+  }
+
+  // Group Members
+  async getGroupMembers(): Promise<GroupMember[]> {
+    try {
+      const json = await AsyncStorage.getItem(KEYS.GROUP_MEMBERS);
+      if (!json) return [];
+      const members = JSON.parse(json);
+      return members.map((member: GroupMember) => ({
+        ...member,
+        joinedAt: new Date(member.joinedAt),
+      }));
+    } catch (error) {
+      console.error('Error getting group members:', error);
+      return [];
+    }
+  }
+
+  async setGroupMembers(members: GroupMember[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.GROUP_MEMBERS, JSON.stringify(members));
+    } catch (error) {
+      console.error('Error setting group members:', error);
     }
   }
 
