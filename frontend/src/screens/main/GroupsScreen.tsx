@@ -7,32 +7,38 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
-import { Group, User } from '../../types';
+import { useGroups, useAuth } from '../../store';
+import { MainStackParamList } from '../../navigation/types';
 
-// Mock data
-const mockGroups: (Group & { members: User[] })[] = [
-  {
-    id: '1',
-    name: '我が家',
-    inviteCode: 'ABC123',
-    createdBy: 'user1',
-    createdAt: new Date(),
-    members: [
-      { id: 'user1', name: 'パパ', email: 'papa@example.com', createdAt: new Date() },
-      { id: 'user2', name: 'ママ', email: 'mama@example.com', createdAt: new Date() },
-      { id: 'user3', name: '太郎', email: 'taro@example.com', createdAt: new Date() },
-    ],
-  },
-];
+type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 export default function GroupsScreen() {
+  const navigation = useNavigation<NavigationProp>();
+  const { groups, members } = useGroups();
+  const { user } = useAuth();
+
+  // Get groups that the current user is a member of
+  const userGroups = groups.filter((group) =>
+    members.some((m) => m.groupId === group.id && m.userId === user?.id)
+  );
+
+  const getMemberCount = (groupId: string) => {
+    return members.filter((m) => m.groupId === groupId).length;
+  };
+
   const handleCreateGroup = () => {
-    // TODO: Navigate to create group
+    navigation.navigate('CreateGroup');
   };
 
   const handleJoinGroup = () => {
-    // TODO: Show join group modal
+    navigation.navigate('JoinGroup');
+  };
+
+  const handleGroupPress = (groupId: string) => {
+    navigation.navigate('GroupDetail', { groupId });
   };
 
   return (
@@ -45,43 +51,35 @@ export default function GroupsScreen() {
       </View>
 
       <ScrollView style={styles.content}>
-        {mockGroups.map((group) => (
-          <TouchableOpacity key={group.id} style={styles.groupCard}>
-            <View style={styles.groupIcon}>
-              <Text style={styles.groupIconText}>
-                {group.name.charAt(0)}
-              </Text>
-            </View>
-            <View style={styles.groupInfo}>
-              <Text style={styles.groupName}>{group.name}</Text>
-              <Text style={styles.memberCount}>
-                {group.members.length}人のメンバー
-              </Text>
-            </View>
-            <View style={styles.memberAvatars}>
-              {group.members.slice(0, 3).map((member, index) => (
-                <View
-                  key={member.id}
-                  style={[
-                    styles.memberAvatar,
-                    { marginLeft: index > 0 ? -8 : 0 },
-                  ]}
-                >
-                  <Text style={styles.memberAvatarText}>
-                    {member.name.charAt(0)}
-                  </Text>
-                </View>
-              ))}
-              {group.members.length > 3 && (
-                <View style={[styles.memberAvatar, styles.moreAvatar]}>
-                  <Text style={styles.moreAvatarText}>
-                    +{group.members.length - 3}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        ))}
+        {userGroups.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>グループがありません</Text>
+            <Text style={styles.emptyText}>
+              グループを作成するか、招待コードで参加しましょう
+            </Text>
+          </View>
+        ) : (
+          userGroups.map((group) => (
+            <TouchableOpacity
+              key={group.id}
+              style={styles.groupCard}
+              onPress={() => handleGroupPress(group.id)}
+            >
+              <View style={styles.groupIcon}>
+                <Text style={styles.groupIconText}>
+                  {group.name.charAt(0)}
+                </Text>
+              </View>
+              <View style={styles.groupInfo}>
+                <Text style={styles.groupName}>{group.name}</Text>
+                <Text style={styles.memberCount}>
+                  {getMemberCount(group.id)}人のメンバー
+                </Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+          ))
+        )}
 
         <TouchableOpacity style={styles.joinButton} onPress={handleJoinGroup}>
           <Text style={styles.joinButtonText}>招待コードで参加</Text>
@@ -125,6 +123,21 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.lg,
   },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing.xxl,
+  },
+  emptyTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  emptyText: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
   groupCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -160,32 +173,9 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textSecondary,
   },
-  memberAvatars: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  memberAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.secondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.backgroundSecondary,
-  },
-  memberAvatarText: {
-    fontSize: fontSize.xs,
-    color: colors.background,
-    fontWeight: 'bold',
-  },
-  moreAvatar: {
-    backgroundColor: colors.textSecondary,
-    marginLeft: -8,
-  },
-  moreAvatarText: {
-    fontSize: 10,
-    color: colors.background,
+  chevron: {
+    fontSize: fontSize.xl,
+    color: colors.textLight,
   },
   joinButton: {
     borderWidth: 1,

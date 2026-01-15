@@ -13,9 +13,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
 import { Button } from '../../components';
+import { useGroups, useAuth } from '../../store';
 
 export default function JoinGroupScreen() {
   const navigation = useNavigation();
+  const { joinGroup } = useGroups();
+  const { user } = useAuth();
   const [inviteCode, setInviteCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -25,18 +28,25 @@ export default function JoinGroupScreen() {
       return;
     }
 
+    if (!user) {
+      Alert.alert('エラー', 'ログインしてください');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // TODO: Call API to join group
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const group = await joinGroup(inviteCode.trim(), user.id);
 
-      // Simulate success
-      Alert.alert('成功', 'グループに参加しました', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      if (group) {
+        Alert.alert('成功', `「${group.name}」に参加しました`, [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+      } else {
+        Alert.alert('エラー', '招待コードが無効です');
+      }
     } catch (error) {
-      Alert.alert('エラー', '招待コードが無効です');
+      Alert.alert('エラー', '参加に失敗しました');
     } finally {
       setIsLoading(false);
     }
