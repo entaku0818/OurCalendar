@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, fontSize, spacing } from '../utils/theme';
 import Button from './Button';
@@ -11,7 +11,7 @@ interface EmptyStateProps {
   onAction?: () => void;
 }
 
-export default function EmptyState({
+const EmptyState = memo(function EmptyState({
   icon = '📭',
   title,
   description,
@@ -34,7 +34,9 @@ export default function EmptyState({
       )}
     </View>
   );
-}
+});
+
+export default EmptyState;
 
 const styles = StyleSheet.create({
   container: {

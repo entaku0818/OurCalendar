@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import { colors, fontSize, spacing } from '../utils/theme';
 
@@ -7,14 +7,16 @@ interface LoadingProps {
   fullScreen?: boolean;
 }
 
-export default function Loading({ message, fullScreen = false }: LoadingProps) {
+const Loading = memo(function Loading({ message, fullScreen = false }: LoadingProps) {
   return (
     <View style={[styles.container, fullScreen && styles.fullScreen]}>
       <ActivityIndicator size="large" color={colors.primary} />
       {message && <Text style={styles.message}>{message}</Text>}
     </View>
   );
-}
+});
+
+export default Loading;
 
 const styles = StyleSheet.create({
   container: {

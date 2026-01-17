@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import {
   View,
   TextInput,
@@ -15,7 +15,7 @@ interface InputProps extends TextInputProps {
   containerStyle?: ViewStyle;
 }
 
-export default function Input({
+const Input = memo(function Input({
   label,
   error,
   containerStyle,
@@ -23,6 +23,9 @@ export default function Input({
   ...props
 }: InputProps) {
   const [isFocused, setIsFocused] = useState(false);
+
+  const handleFocus = useCallback(() => setIsFocused(true), []);
+  const handleBlur = useCallback(() => setIsFocused(false), []);
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -35,14 +38,16 @@ export default function Input({
           style,
         ]}
         placeholderTextColor={colors.textLight}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         {...props}
       />
       {error && <Text style={styles.error}>{error}</Text>}
     </View>
   );
-}
+});
+
+export default Input;
 
 const styles = StyleSheet.create({
   container: {

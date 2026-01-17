@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -24,7 +24,7 @@ interface ButtonProps {
   textStyle?: TextStyle;
 }
 
-export default function Button({
+const Button = memo(function Button({
   title,
   onPress,
   variant = 'primary',
@@ -70,7 +70,9 @@ export default function Button({
       )}
     </TouchableOpacity>
   );
-}
+});
+
+export default Button;
 
 const styles = StyleSheet.create({
   base: {

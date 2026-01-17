@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
 import { colors, spacing, borderRadius } from '../utils/theme';
 
@@ -9,7 +9,7 @@ interface CardProps {
   variant?: 'default' | 'elevated' | 'outlined';
 }
 
-export default function Card({
+const Card = memo(function Card({
   children,
   style,
   onPress,
@@ -31,7 +31,9 @@ export default function Card({
   }
 
   return <View style={cardStyle}>{children}</View>;
-}
+});
+
+export default Card;
 
 const styles = StyleSheet.create({
   base: {
