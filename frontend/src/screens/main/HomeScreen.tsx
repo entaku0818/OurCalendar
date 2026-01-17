@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  ListRenderItem,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -13,8 +14,45 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
 import { useEvents, useAuth } from '../../store';
 import { MainStackParamList } from '../../navigation/types';
+import { CalendarEvent } from '../../types';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
+
+// Memoized constants
+const WEEK_DAYS = ['日', '月', '火', '水', '木', '金', '土'] as const;
+
+// Memoized event item component
+interface EventItemProps {
+  event: CalendarEvent;
+  onPress: (id: string) => void;
+}
+
+const EventItem = memo(function EventItem({ event, onPress }: EventItemProps) {
+  const handlePress = useCallback(() => onPress(event.id), [event.id, onPress]);
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  return (
+    <TouchableOpacity style={styles.eventItem} onPress={handlePress}>
+      <View style={styles.eventTime}>
+        <Text style={styles.eventTimeText}>{formatTime(event.startAt)}</Text>
+      </View>
+      <View style={styles.eventContent}>
+        <View style={styles.eventTitleRow}>
+          <Text style={styles.eventTitle}>{event.title}</Text>
+          {event.isFromGoogle && (
+            <View style={styles.googleBadge}>
+              <Text style={styles.googleBadgeText}>G</Text>
+            </View>
+          )}
+        </View>
+        {event.isShared && <Text style={styles.eventShared}>共有中</Text>}
+      </View>
+    </TouchableOpacity>
+  );
+});
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -29,68 +67,81 @@ export default function HomeScreen() {
     }
   }, [user?.googleId, fetchGoogleCalendarEvents]);
 
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
+  // Memoized days calculation
+  const days = useMemo(() => {
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    const days: Date[] = [];
+    const result: Date[] = [];
 
     // Add padding for first week
     const startPadding = firstDay.getDay();
     for (let i = startPadding - 1; i >= 0; i--) {
-      days.push(new Date(year, month, -i));
+      result.push(new Date(year, month, -i));
     }
 
     // Add days of month
     for (let i = 1; i <= lastDay.getDate(); i++) {
-      days.push(new Date(year, month, i));
+      result.push(new Date(year, month, i));
     }
 
-    return days;
-  };
+    return result;
+  }, [selectedDate]);
 
-  const days = getDaysInMonth(selectedDate);
-  const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
+  // Memoized event dates set for quick lookup
+  const eventDatesSet = useMemo(() => {
+    return new Set(events.map((e) => e.startAt.toDateString()));
+  }, [events]);
 
-  const formatMonth = (date: Date) => {
+  // Memoized filtered events for selected date
+  const todayEvents = useMemo(() => {
+    const selectedDateStr = selectedDate.toDateString();
+    return events
+      .filter((event) => event.startAt.toDateString() === selectedDateStr)
+      .sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
+  }, [events, selectedDate]);
+
+  const formatMonth = useCallback((date: Date) => {
     return date.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' });
-  };
+  }, []);
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const isToday = (date: Date) => {
+  const isToday = useCallback((date: Date) => {
     const today = new Date();
     return date.toDateString() === today.toDateString();
-  };
+  }, []);
 
-  const hasEvents = (date: Date) => {
-    return events.some(
-      (event) => event.startAt.toDateString() === date.toDateString()
-    );
-  };
+  const hasEvents = useCallback(
+    (date: Date) => eventDatesSet.has(date.toDateString()),
+    [eventDatesSet]
+  );
 
-  const getEventsForDate = (date: Date) => {
-    return events.filter(
-      (event) => event.startAt.toDateString() === date.toDateString()
-    );
-  };
-
-  const handleTodayPress = () => {
+  const handleTodayPress = useCallback(() => {
     setSelectedDate(new Date());
-  };
+  }, []);
 
-  const handleAddPress = () => {
+  const handleAddPress = useCallback(() => {
     navigation.navigate('CreateEvent', { date: selectedDate.toISOString() });
-  };
+  }, [navigation, selectedDate]);
 
-  const handleEventPress = (eventId: string) => {
-    navigation.navigate('EventDetail', { eventId });
-  };
+  const handleEventPress = useCallback(
+    (eventId: string) => {
+      navigation.navigate('EventDetail', { eventId });
+    },
+    [navigation]
+  );
 
-  const todayEvents = getEventsForDate(selectedDate);
+  const handleDateSelect = useCallback((date: Date) => {
+    setSelectedDate(date);
+  }, []);
+
+  // FlatList render item
+  const renderEventItem: ListRenderItem<CalendarEvent> = useCallback(
+    ({ item }) => <EventItem event={item} onPress={handleEventPress} />,
+    [handleEventPress]
+  );
+
+  const keyExtractor = useCallback((item: CalendarEvent) => item.id, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -118,7 +169,7 @@ export default function HomeScreen() {
 
       <View style={styles.calendar}>
         <View style={styles.weekDaysRow}>
-          {weekDays.map((day, index) => (
+          {WEEK_DAYS.map((day, index) => (
             <Text
               key={day}
               style={[
@@ -142,7 +193,7 @@ export default function HomeScreen() {
                 date.toDateString() === selectedDate.toDateString() &&
                   styles.selectedCell,
               ]}
-              onPress={() => setSelectedDate(date)}
+              onPress={() => handleDateSelect(date)}
             >
               <Text
                 style={[
@@ -171,38 +222,19 @@ export default function HomeScreen() {
           の予定
         </Text>
 
-        <ScrollView style={styles.eventsList}>
-          {todayEvents.length === 0 ? (
+        <FlatList
+          style={styles.eventsList}
+          data={todayEvents}
+          renderItem={renderEventItem}
+          keyExtractor={keyExtractor}
+          ListEmptyComponent={
             <Text style={styles.noEvents}>予定はありません</Text>
-          ) : (
-            todayEvents.map((event) => (
-              <TouchableOpacity
-                key={event.id}
-                style={styles.eventItem}
-                onPress={() => handleEventPress(event.id)}
-              >
-                <View style={styles.eventTime}>
-                  <Text style={styles.eventTimeText}>
-                    {formatTime(event.startAt)}
-                  </Text>
-                </View>
-                <View style={styles.eventContent}>
-                  <View style={styles.eventTitleRow}>
-                    <Text style={styles.eventTitle}>{event.title}</Text>
-                    {event.isFromGoogle && (
-                      <View style={styles.googleBadge}>
-                        <Text style={styles.googleBadgeText}>G</Text>
-                      </View>
-                    )}
-                  </View>
-                  {event.isShared && (
-                    <Text style={styles.eventShared}>共有中</Text>
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))
-          )}
-        </ScrollView>
+          }
+          showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+        />
       </View>
 
       <TouchableOpacity style={styles.addButton} onPress={handleAddPress}>
