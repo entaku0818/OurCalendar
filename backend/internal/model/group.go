@@ -26,3 +26,32 @@ type GroupMember struct {
 	Role     MemberRole `json:"role" db:"role"`
 	JoinedAt time.Time  `json:"joinedAt" db:"joined_at"`
 }
+
+// GroupWithMembers is a group with its members
+type GroupWithMembers struct {
+	Group   `json:"group"`
+	Members []GroupMemberWithUser `json:"members"`
+}
+
+// GroupMemberWithUser is a group member with user information
+type GroupMemberWithUser struct {
+	GroupMember
+	User *User `json:"user,omitempty"`
+}
+
+// CreateGroupRequest is the request body for creating a group
+type CreateGroupRequest struct {
+	Name    string  `json:"name" validate:"required"`
+	IconURL *string `json:"iconUrl,omitempty"`
+}
+
+// UpdateGroupRequest is the request body for updating a group
+type UpdateGroupRequest struct {
+	Name    *string `json:"name,omitempty"`
+	IconURL *string `json:"iconUrl,omitempty"`
+}
+
+// JoinGroupRequest is the request body for joining a group
+type JoinGroupRequest struct {
+	InviteCode string `json:"inviteCode" validate:"required"`
+}

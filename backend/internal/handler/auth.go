@@ -3,10 +3,20 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/entaku0818/OurCalendar/backend/internal/service"
 )
 
-type AuthRequest struct {
-	Token string `json:"token"`
+type AuthHandler struct {
+	authService *service.AuthService
+}
+
+func NewAuthHandler(authService *service.AuthService) *AuthHandler {
+	return &AuthHandler{authService: authService}
+}
+
+type GoogleAuthRequest struct {
+	IDToken string `json:"idToken"`
 }
 
 type AuthResponse struct {
@@ -14,38 +24,70 @@ type AuthResponse struct {
 	AccessToken string      `json:"accessToken"`
 }
 
-// GoogleAuth handles Google OAuth authentication
-func GoogleAuth(w http.ResponseWriter, r *http.Request) {
-	var req AuthRequest
+type RefreshRequest struct {
+	Token string `json:"token"`
+}
+
+func (h *AuthHandler) GoogleAuth(w http.ResponseWriter, r *http.Request) {
+	var req GoogleAuthRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	// TODO: Verify Google token and create/get user
-	// 1. Verify token with Google
-	// 2. Extract user info
-	// 3. Create or update user in database
-	// 4. Generate JWT token
+	if req.IDToken == "" {
+		writeError(w, http.StatusBadRequest, "idToken is required")
+		return
+	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Google auth not implemented yet",
+	user, token, err := h.authService.AuthenticateWithGoogle(r.Context(), req.IDToken)
+	if err != nil {
+		if err == service.ErrInvalidGoogleToken {
+			writeError(w, http.StatusUnauthorized, "invalid google token")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "authentication failed")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, AuthResponse{
+		User:        user,
+		AccessToken: token,
 	})
 }
 
-// LineAuth handles LINE OAuth authentication
-func LineAuth(w http.ResponseWriter, r *http.Request) {
-	var req AuthRequest
+func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	var req RefreshRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	// TODO: Verify LINE token and create/get user
+	if req.Token == "" {
+		writeError(w, http.StatusBadRequest, "token is required")
+		return
+	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "LINE auth not implemented yet",
+	user, token, err := h.authService.RefreshToken(r.Context(), req.Token)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "invalid or expired token")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, AuthResponse{
+		User:        user,
+		AccessToken: token,
 	})
+}
+
+func writeJSON(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(data)
+}
+
+func writeError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]string{"error": message})
 }

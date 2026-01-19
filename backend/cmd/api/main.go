@@ -6,11 +6,14 @@ import (
 	"os"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
 
+	"github.com/entaku0818/OurCalendar/backend/internal/config"
 	"github.com/entaku0818/OurCalendar/backend/internal/handler"
+	"github.com/entaku0818/OurCalendar/backend/internal/middleware"
+	"github.com/entaku0818/OurCalendar/backend/internal/repository"
+	"github.com/entaku0818/OurCalendar/backend/internal/service"
 )
 
 func main() {
@@ -19,25 +22,37 @@ func main() {
 		godotenv.Load()
 	}
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	cfg := config.Load()
+
+	// Initialize database connection
+	db, err := repository.NewDB(cfg.SupabaseURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
+	defer db.Close()
+
+	// Initialize repositories
+	userRepo := repository.NewUserRepository(db)
+	groupRepo := repository.NewGroupRepository(db)
+	eventRepo := repository.NewEventRepository(db)
+	settingsRepo := repository.NewSettingsRepository(db)
+
+	// Initialize services
+	authService := service.NewAuthService(cfg, userRepo, settingsRepo)
+
+	// Initialize handlers
+	authHandler := handler.NewAuthHandler(authService)
+	userHandler := handler.NewUserHandler(userRepo, settingsRepo)
+	groupHandler := handler.NewGroupHandler(groupRepo)
+	eventHandler := handler.NewEventHandler(eventRepo, groupRepo)
 
 	r := chi.NewRouter()
 
 	// Middleware
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.RequestID)
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: true,
-		MaxAge:           300,
-	}))
+	r.Use(chimiddleware.Logger)
+	r.Use(chimiddleware.Recoverer)
+	r.Use(chimiddleware.RequestID)
+	r.Use(middleware.CORS())
 
 	// Health check
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -46,41 +61,53 @@ func main() {
 
 	// API routes
 	r.Route("/api/v1", func(r chi.Router) {
-		// Auth routes
+		// Auth routes (public)
 		r.Route("/auth", func(r chi.Router) {
-			r.Post("/google", handler.GoogleAuth)
-			r.Post("/line", handler.LineAuth)
+			r.Post("/google", authHandler.GoogleAuth)
+			r.Post("/refresh", authHandler.RefreshToken)
 		})
 
-		// User routes (requires auth)
-		r.Route("/users", func(r chi.Router) {
-			r.Get("/me", handler.GetCurrentUser)
-			r.Put("/me", handler.UpdateUser)
-		})
+		// Protected routes
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Auth(authService))
 
-		// Group routes
-		r.Route("/groups", func(r chi.Router) {
-			r.Get("/", handler.ListGroups)
-			r.Post("/", handler.CreateGroup)
-			r.Get("/{groupID}", handler.GetGroup)
-			r.Put("/{groupID}", handler.UpdateGroup)
-			r.Delete("/{groupID}", handler.DeleteGroup)
-			r.Post("/{groupID}/join", handler.JoinGroup)
-			r.Post("/{groupID}/leave", handler.LeaveGroup)
-		})
+			// User routes
+			r.Route("/users", func(r chi.Router) {
+				r.Get("/me", userHandler.GetCurrentUser)
+				r.Put("/me", userHandler.UpdateUser)
+			})
 
-		// Event routes
-		r.Route("/events", func(r chi.Router) {
-			r.Get("/", handler.ListEvents)
-			r.Post("/", handler.CreateEvent)
-			r.Get("/{eventID}", handler.GetEvent)
-			r.Put("/{eventID}", handler.UpdateEvent)
-			r.Delete("/{eventID}", handler.DeleteEvent)
+			// Settings routes
+			r.Route("/settings", func(r chi.Router) {
+				r.Get("/", userHandler.GetSettings)
+				r.Put("/", userHandler.UpdateSettings)
+			})
+
+			// Group routes
+			r.Route("/groups", func(r chi.Router) {
+				r.Get("/", groupHandler.ListGroups)
+				r.Post("/", groupHandler.CreateGroup)
+				r.Post("/join", groupHandler.JoinGroup)
+				r.Get("/{groupID}", groupHandler.GetGroup)
+				r.Put("/{groupID}", groupHandler.UpdateGroup)
+				r.Delete("/{groupID}", groupHandler.DeleteGroup)
+				r.Post("/{groupID}/leave", groupHandler.LeaveGroup)
+				r.Delete("/{groupID}/members/{userID}", groupHandler.RemoveMember)
+			})
+
+			// Event routes
+			r.Route("/events", func(r chi.Router) {
+				r.Get("/", eventHandler.ListEvents)
+				r.Post("/", eventHandler.CreateEvent)
+				r.Get("/{eventID}", eventHandler.GetEvent)
+				r.Put("/{eventID}", eventHandler.UpdateEvent)
+				r.Delete("/{eventID}", eventHandler.DeleteEvent)
+			})
 		})
 	})
 
-	log.Printf("Server starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+	log.Printf("Server starting on port %s", cfg.Port)
+	if err := http.ListenAndServe(":"+cfg.Port, r); err != nil {
 		log.Fatal(err)
 	}
 }

@@ -12,3 +12,15 @@ type User struct {
 	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
 }
+
+// UpdateUserRequest is the request body for updating a user
+type UpdateUserRequest struct {
+	Name      *string `json:"name,omitempty"`
+	AvatarURL *string `json:"avatarUrl,omitempty"`
+}
+
+// UserWithSettings returns user with their settings
+type UserWithSettings struct {
+	User     `json:"user"`
+	Settings *UserSettings `json:"settings,omitempty"`
+}
