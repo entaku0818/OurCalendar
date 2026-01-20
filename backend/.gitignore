@@ -1,0 +1,17 @@
+# Environment variables
+.env
+.env.local
+
+# Binary
+main
+server
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Test coverage
+coverage.out
