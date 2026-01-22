@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User } from '../types';
 import { storageService } from '../services/storage';
+import { apiClient } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -21,6 +22,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const loadUser = async () => {
       try {
+        // Initialize API client (loads stored token)
+        await apiClient.init();
+
         const [savedUser, onboarded] = await Promise.all([
           storageService.getUser(),
           storageService.getIsOnboarded(),
@@ -50,7 +54,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     setUser(null);
     setIsOnboarded(false);
-    await storageService.clearAll();
+    await Promise.all([
+      storageService.clearAll(),
+      apiClient.logout(),
+    ]);
   }, []);
 
   const completeOnboarding = useCallback(async () => {

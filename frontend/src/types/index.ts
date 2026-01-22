@@ -43,6 +43,10 @@ export interface CalendarEvent {
   isShared: boolean;
   createdBy: string;
   createdAt: Date;
+  // Owner info for group events
+  ownerName?: string;
+  ownerAvatarUrl?: string;
+  isOwnEvent?: boolean; // true if this is the current user's event
 }
 
 // App State

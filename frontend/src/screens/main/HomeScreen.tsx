@@ -15,6 +15,10 @@ import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
 import { useEvents, useAuth } from '../../store';
 import { MainStackParamList } from '../../navigation/types';
 import { CalendarEvent } from '../../types';
+import WeeklyCalendar from '../../components/WeeklyCalendar';
+import DailyCalendar from '../../components/DailyCalendar';
+
+type ViewMode = 'month' | 'week' | 'day';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -28,27 +32,61 @@ interface EventItemProps {
 }
 
 const EventItem = memo(function EventItem({ event, onPress }: EventItemProps) {
-  const handlePress = useCallback(() => onPress(event.id), [event.id, onPress]);
+  const handlePress = useCallback(() => {
+    // Only allow pressing own events
+    if (event.isOwnEvent !== false) {
+      onPress(event.id);
+    }
+  }, [event.id, event.isOwnEvent, onPress]);
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
   };
 
+  const isOtherMemberEvent = event.isOwnEvent === false;
+
   return (
-    <TouchableOpacity style={styles.eventItem} onPress={handlePress}>
+    <TouchableOpacity
+      style={[styles.eventItem, isOtherMemberEvent && styles.otherMemberEventItem]}
+      onPress={handlePress}
+      activeOpacity={isOtherMemberEvent ? 1 : 0.7}
+    >
+      {isOtherMemberEvent && (
+        <View style={styles.memberAvatar}>
+          {event.ownerAvatarUrl ? (
+            <View style={styles.avatarImage}>
+              <Text style={styles.avatarInitial}>
+                {event.ownerName?.charAt(0) || '?'}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.avatarImage}>
+              <Text style={styles.avatarInitial}>
+                {event.ownerName?.charAt(0) || '?'}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
       <View style={styles.eventTime}>
         <Text style={styles.eventTimeText}>{formatTime(event.startAt)}</Text>
       </View>
       <View style={styles.eventContent}>
         <View style={styles.eventTitleRow}>
-          <Text style={styles.eventTitle}>{event.title}</Text>
-          {event.isFromGoogle && (
+          <Text style={[styles.eventTitle, isOtherMemberEvent && styles.otherMemberEventTitle]}>
+            {isOtherMemberEvent ? '予定あり' : event.title}
+          </Text>
+          {!isOtherMemberEvent && event.isFromGoogle && (
             <View style={styles.googleBadge}>
               <Text style={styles.googleBadgeText}>G</Text>
             </View>
           )}
         </View>
-        {event.isShared && <Text style={styles.eventShared}>共有中</Text>}
+        {isOtherMemberEvent ? (
+          <Text style={styles.memberName}>{event.ownerName}</Text>
+        ) : (
+          event.isShared && <Text style={styles.eventShared}>共有中</Text>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -56,9 +94,10 @@ const EventItem = memo(function EventItem({ event, onPress }: EventItemProps) {
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { events, isSyncing, fetchGoogleCalendarEvents } = useEvents();
+  const { allEvents, isSyncing, fetchGoogleCalendarEvents } = useEvents();
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<ViewMode>('month');
 
   // Fetch Google Calendar events on mount if user has Google linked
   useEffect(() => {
@@ -91,16 +130,16 @@ export default function HomeScreen() {
 
   // Memoized event dates set for quick lookup
   const eventDatesSet = useMemo(() => {
-    return new Set(events.map((e) => e.startAt.toDateString()));
-  }, [events]);
+    return new Set(allEvents.map((e) => e.startAt.toDateString()));
+  }, [allEvents]);
 
   // Memoized filtered events for selected date
   const todayEvents = useMemo(() => {
     const selectedDateStr = selectedDate.toDateString();
-    return events
+    return allEvents
       .filter((event) => event.startAt.toDateString() === selectedDateStr)
       .sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
-  }, [events, selectedDate]);
+  }, [allEvents, selectedDate]);
 
   const formatMonth = useCallback((date: Date) => {
     return date.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' });
@@ -135,6 +174,43 @@ export default function HomeScreen() {
     setSelectedDate(date);
   }, []);
 
+  const handleTimeSlotPress = useCallback(
+    (date: Date, hour: number) => {
+      const eventDate = new Date(date);
+      eventDate.setHours(hour, 0, 0, 0);
+      navigation.navigate('CreateEvent', { date: eventDate.toISOString() });
+    },
+    [navigation]
+  );
+
+  const handlePrevious = useCallback(() => {
+    setSelectedDate((prev) => {
+      const newDate = new Date(prev);
+      if (viewMode === 'month') {
+        newDate.setMonth(newDate.getMonth() - 1);
+      } else if (viewMode === 'week') {
+        newDate.setDate(newDate.getDate() - 7);
+      } else {
+        newDate.setDate(newDate.getDate() - 1);
+      }
+      return newDate;
+    });
+  }, [viewMode]);
+
+  const handleNext = useCallback(() => {
+    setSelectedDate((prev) => {
+      const newDate = new Date(prev);
+      if (viewMode === 'month') {
+        newDate.setMonth(newDate.getMonth() + 1);
+      } else if (viewMode === 'week') {
+        newDate.setDate(newDate.getDate() + 7);
+      } else {
+        newDate.setDate(newDate.getDate() + 1);
+      }
+      return newDate;
+    });
+  }, [viewMode]);
+
   // FlatList render item
   const renderEventItem: ListRenderItem<CalendarEvent> = useCallback(
     ({ item }) => <EventItem event={item} onPress={handleEventPress} />,
@@ -146,28 +222,86 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.monthTitle}>{formatMonth(selectedDate)}</Text>
-        <View style={styles.headerButtons}>
-          {user?.googleId && (
-            <TouchableOpacity
-              style={styles.syncButton}
-              onPress={fetchGoogleCalendarEvents}
-              disabled={isSyncing}
-            >
-              {isSyncing ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <Text style={styles.syncButtonText}>同期</Text>
-              )}
+        <View style={styles.headerTop}>
+          <View style={styles.navigationRow}>
+            <TouchableOpacity style={styles.navButton} onPress={handlePrevious}>
+              <Text style={styles.navButtonText}>{'<'}</Text>
             </TouchableOpacity>
-          )}
-          <TouchableOpacity style={styles.todayButton} onPress={handleTodayPress}>
-            <Text style={styles.todayButtonText}>今日</Text>
+            <Text style={styles.monthTitle}>{formatMonth(selectedDate)}</Text>
+            <TouchableOpacity style={styles.navButton} onPress={handleNext}>
+              <Text style={styles.navButtonText}>{'>'}</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.headerButtons}>
+            {user?.googleId && (
+              <TouchableOpacity
+                style={styles.syncButton}
+                onPress={fetchGoogleCalendarEvents}
+                disabled={isSyncing}
+              >
+                {isSyncing ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Text style={styles.syncButtonText}>同期</Text>
+                )}
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.todayButton} onPress={handleTodayPress}>
+              <Text style={styles.todayButtonText}>今日</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.viewModeRow}>
+          <TouchableOpacity
+            style={[styles.viewModeButton, viewMode === 'month' && styles.viewModeButtonActive]}
+            onPress={() => setViewMode('month')}
+          >
+            <Text style={[styles.viewModeText, viewMode === 'month' && styles.viewModeTextActive]}>
+              月
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.viewModeButton, viewMode === 'week' && styles.viewModeButtonActive]}
+            onPress={() => setViewMode('week')}
+          >
+            <Text style={[styles.viewModeText, viewMode === 'week' && styles.viewModeTextActive]}>
+              週
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.viewModeButton, viewMode === 'day' && styles.viewModeButtonActive]}
+            onPress={() => setViewMode('day')}
+          >
+            <Text style={[styles.viewModeText, viewMode === 'day' && styles.viewModeTextActive]}>
+              日
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.calendar}>
+      {viewMode === 'week' && (
+        <WeeklyCalendar
+          selectedDate={selectedDate}
+          events={allEvents}
+          onDateSelect={handleDateSelect}
+          onEventPress={handleEventPress}
+          onTimeSlotPress={handleTimeSlotPress}
+        />
+      )}
+
+      {viewMode === 'day' && (
+        <DailyCalendar
+          selectedDate={selectedDate}
+          events={allEvents}
+          onEventPress={handleEventPress}
+          onTimeSlotPress={handleTimeSlotPress}
+        />
+      )}
+
+      {viewMode === 'month' && (
+        <>
+          <View style={styles.calendar}>
         <View style={styles.weekDaysRow}>
           {WEEK_DAYS.map((day, index) => (
             <Text
@@ -236,6 +370,8 @@ export default function HomeScreen() {
           windowSize={5}
         />
       </View>
+        </>
+      )}
 
       <TouchableOpacity style={styles.addButton} onPress={handleAddPress}>
         <Text style={styles.addButtonText}>+</Text>
@@ -250,20 +386,71 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  navigationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  navButton: {
+    width: 32,
+    height: 32,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.backgroundSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  navButtonText: {
+    fontSize: fontSize.lg,
+    color: colors.text,
+    fontWeight: '600',
+  },
   monthTitle: {
-    fontSize: fontSize.xl,
+    fontSize: fontSize.lg,
     fontWeight: 'bold',
     color: colors.text,
+    minWidth: 140,
+    textAlign: 'center',
   },
   headerButtons: {
     flexDirection: 'row',
     gap: spacing.sm,
+  },
+  viewModeRow: {
+    flexDirection: 'row',
+    marginTop: spacing.md,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.md,
+    padding: 2,
+  },
+  viewModeButton: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    borderRadius: borderRadius.sm,
+  },
+  viewModeButtonActive: {
+    backgroundColor: colors.background,
+    shadowColor: colors.cardShadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  viewModeText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  viewModeTextActive: {
+    color: colors.primary,
   },
   syncButton: {
     paddingHorizontal: spacing.md,
@@ -377,6 +564,28 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.sm,
+    alignItems: 'center',
+  },
+  otherMemberEventItem: {
+    backgroundColor: colors.border,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.secondary,
+  },
+  memberAvatar: {
+    marginRight: spacing.sm,
+  },
+  avatarImage: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.secondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitial: {
+    fontSize: fontSize.sm,
+    color: colors.background,
+    fontWeight: '600',
   },
   eventTime: {
     marginRight: spacing.md,
@@ -399,6 +608,15 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: '500',
     flex: 1,
+  },
+  otherMemberEventTitle: {
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  memberName: {
+    fontSize: fontSize.xs,
+    color: colors.secondary,
+    fontWeight: '500',
   },
   googleBadge: {
     backgroundColor: '#4285F4',

@@ -4,6 +4,7 @@ import * as Google from 'expo-auth-session/providers/google';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { User } from '../types';
+import { apiClient } from '../services/api';
 
 // Complete auth session for web browser
 WebBrowser.maybeCompleteAuthSession();
@@ -38,6 +39,8 @@ interface GoogleUserInfo {
   name: string;
   picture?: string;
 }
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export function useGoogleAuth() {
   const [state, setState] = useState<GoogleAuthState>({
@@ -91,10 +94,11 @@ export function useGoogleAuth() {
       console.log('promptAsync result:', JSON.stringify(result, null, 2));
 
       if (result?.type === 'success') {
+        let idToken = result.authentication?.idToken;
         let accessToken = result.authentication?.accessToken;
 
         // If we got a code instead of token, exchange it
-        if (!accessToken && result.params?.code && request?.codeVerifier) {
+        if (!idToken && result.params?.code && request?.codeVerifier) {
           console.log('Exchanging code for token...');
           console.log('redirectUri:', request.redirectUri);
           const tokenResult = await AuthSession.exchangeCodeAsync(
@@ -108,10 +112,26 @@ export function useGoogleAuth() {
             },
             { tokenEndpoint: 'https://oauth2.googleapis.com/token' }
           );
+          idToken = tokenResult.idToken;
           accessToken = tokenResult.accessToken;
           console.log('Token exchange successful');
         }
 
+        // Try to authenticate with backend if API URL is configured
+        if (API_URL && idToken) {
+          console.log('Authenticating with backend...');
+          try {
+            const authResult = await apiClient.authenticateWithGoogle(idToken);
+            console.log('Backend auth successful');
+            setState({ isLoading: false, error: null });
+            return { user: authResult.user, accessToken: authResult.accessToken };
+          } catch (backendError) {
+            console.warn('Backend auth failed, falling back to local auth:', backendError);
+            // Fall through to local auth
+          }
+        }
+
+        // Fallback: Local auth without backend
         if (!accessToken) {
           throw new Error('No access token received');
         }
@@ -147,7 +167,8 @@ export function useGoogleAuth() {
     setState({ isLoading: true, error: null });
 
     try {
-      // Clear local state - actual token revocation would be done server-side
+      // Clear API client token
+      await apiClient.logout();
       setState({ isLoading: false, error: null });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'ログアウトに失敗しました';

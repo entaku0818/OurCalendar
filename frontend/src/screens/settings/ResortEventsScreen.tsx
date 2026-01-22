@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { colors, fontSize, spacing } from '../../utils/theme';
+import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
 import { SwipeCard, Button } from '../../components';
 import { useEvents } from '../../store';
 
@@ -132,6 +132,15 @@ export default function ResortEventsScreen() {
           現在: {currentEvent?.isShared ? '共有中' : '非公開'}
         </Text>
       </View>
+
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.skipButton}
+          onPress={() => setIsComplete(true)}
+        >
+          <Text style={styles.skipButtonText}>スキップして完了</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -240,5 +249,23 @@ const styles = StyleSheet.create({
   },
   completeButton: {
     minWidth: 200,
+  },
+  footer: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+    alignItems: 'center',
+  },
+  skipButton: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  skipButtonText: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
 });

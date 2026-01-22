@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { CalendarEvent } from '../types';
-import { storageService, googleCalendarService } from '../services';
+import { storageService, googleCalendarService, apiClient } from '../services';
 
 interface EventsContextType {
   events: CalendarEvent[];
+  groupEvents: CalendarEvent[]; // Other members' shared events
+  allEvents: CalendarEvent[]; // Combined: own events + group events
   isLoading: boolean;
   isSyncing: boolean;
   addEvent: (event: Omit<CalendarEvent, 'id' | 'createdAt'>) => void;
@@ -14,6 +16,7 @@ interface EventsContextType {
   getSharedEvents: () => CalendarEvent[];
   syncFromGoogle: (events: CalendarEvent[]) => void;
   fetchGoogleCalendarEvents: () => Promise<void>;
+  fetchGroupEvents: (groupId: string) => Promise<void>;
 }
 
 const EventsContext = createContext<EventsContextType | undefined>(undefined);
@@ -23,8 +26,15 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 
 export function EventsProvider({ children }: { children: React.ReactNode }) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [groupEvents, setGroupEvents] = useState<CalendarEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Combined events: own events + group members' events
+  const allEvents = React.useMemo(() => {
+    const ownEvents = events.map((e) => ({ ...e, isOwnEvent: true }));
+    return [...ownEvents, ...groupEvents];
+  }, [events, groupEvents]);
 
   // Load from storage on mount
   useEffect(() => {
@@ -137,10 +147,42 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const fetchGroupEvents = useCallback(async (groupId: string) => {
+    try {
+      const response = await apiClient.getEvents({ groupId, sharedOnly: true });
+
+      // Transform API response to CalendarEvent format
+      // Filter out own events (they're already in `events` state)
+      const memberEvents: CalendarEvent[] = response
+        .filter((e: any) => !e.isOwnEvent)
+        .map((e: any) => ({
+          id: e.id,
+          groupId: e.groupId,
+          title: '予定あり', // Mask the title
+          startAt: new Date(e.startAt),
+          endAt: new Date(e.endAt),
+          memo: undefined, // Don't show memo
+          isFromGoogle: e.isFromGoogle,
+          isShared: true,
+          createdBy: e.createdBy,
+          createdAt: new Date(e.createdAt),
+          ownerName: e.ownerName,
+          ownerAvatarUrl: e.ownerAvatarUrl,
+          isOwnEvent: false,
+        }));
+
+      setGroupEvents(memberEvents);
+    } catch (error) {
+      console.error('Failed to fetch group events:', error);
+    }
+  }, []);
+
   return (
     <EventsContext.Provider
       value={{
         events,
+        groupEvents,
+        allEvents,
         isLoading,
         isSyncing,
         addEvent,
@@ -151,6 +193,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         getSharedEvents,
         syncFromGoogle,
         fetchGoogleCalendarEvents,
+        fetchGroupEvents,
       }}
     >
       {children}

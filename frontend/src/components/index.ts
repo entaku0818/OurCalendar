@@ -6,3 +6,5 @@ export { default as Avatar } from './Avatar';
 export { default as EmptyState } from './EmptyState';
 export { default as Loading } from './Loading';
 export { default as DateTimePicker } from './DateTimePicker';
+export { default as WeeklyCalendar } from './WeeklyCalendar';
+export { default as DailyCalendar } from './DailyCalendar';

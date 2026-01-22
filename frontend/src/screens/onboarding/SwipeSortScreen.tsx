@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { OnboardingScreenProps } from '../../navigation/types';
-import { colors, fontSize, spacing } from '../../utils/theme';
+import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
 import SwipeCard from '../../components/SwipeCard';
 import { useEvents } from '../../store';
 
@@ -112,6 +112,16 @@ export default function SwipeSortScreen() {
           <Text style={styles.hintText}>共有: グループに公開</Text>
         </View>
       </View>
+
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.skipButton}
+          onPress={() => navigation.navigate('CreateGroup')}
+        >
+          <Text style={styles.skipButtonText}>スキップして次へ</Text>
+        </TouchableOpacity>
+        <Text style={styles.skipNote}>後から設定画面で振り分けできます</Text>
+      </View>
     </View>
   );
 }
@@ -201,9 +211,27 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     alignItems: 'center',
   },
+  footer: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+    alignItems: 'center',
+  },
   skipButton: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  skipButtonText: {
     fontSize: fontSize.md,
-    color: colors.primary,
+    color: colors.textSecondary,
     fontWeight: '600',
+  },
+  skipNote: {
+    fontSize: fontSize.sm,
+    color: colors.textLight,
+    marginTop: spacing.sm,
   },
 });
