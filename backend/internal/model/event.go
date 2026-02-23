@@ -20,13 +20,15 @@ type Event struct {
 
 // CreateEventRequest is the request body for creating an event
 type CreateEventRequest struct {
-	Title      string  `json:"title" validate:"required"`
-	StartAt    string  `json:"startAt" validate:"required"`
-	EndAt      string  `json:"endAt" validate:"required"`
-	Memo       *string `json:"memo,omitempty"`
-	GroupID    *string `json:"groupId,omitempty"`
-	AssigneeID *string `json:"assigneeId,omitempty"`
-	IsShared   bool    `json:"isShared"`
+	Title         string  `json:"title" validate:"required"`
+	StartAt       string  `json:"startAt" validate:"required"`
+	EndAt         string  `json:"endAt" validate:"required"`
+	Memo          *string `json:"memo,omitempty"`
+	GroupID       *string `json:"groupId,omitempty"`
+	AssigneeID    *string `json:"assigneeId,omitempty"`
+	IsShared      bool    `json:"isShared"`
+	IsFromGoogle  bool    `json:"isFromGoogle"`
+	GoogleEventID *string `json:"googleEventId,omitempty"`
 }
 
 // UpdateEventRequest is the request body for updating an event

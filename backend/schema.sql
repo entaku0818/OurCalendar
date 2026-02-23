@@ -67,6 +67,7 @@ CREATE INDEX IF NOT EXISTS idx_events_group ON events(group_id);
 CREATE INDEX IF NOT EXISTS idx_events_created_by ON events(created_by);
 CREATE INDEX IF NOT EXISTS idx_events_start_at ON events(start_at);
 CREATE INDEX IF NOT EXISTS idx_events_assignee ON events(assignee_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_events_google_event_id ON events(google_event_id, created_by) WHERE google_event_id IS NOT NULL;
 
 -- User settings table
 CREATE TABLE IF NOT EXISTS user_settings (

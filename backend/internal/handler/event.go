@@ -116,17 +116,25 @@ func (h *EventHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	event := &model.Event{
-		Title:      req.Title,
-		StartAt:    startAt,
-		EndAt:      endAt,
-		Memo:       req.Memo,
-		GroupID:    req.GroupID,
-		AssigneeID: req.AssigneeID,
-		IsShared:   req.IsShared,
-		CreatedBy:  userID,
+		Title:         req.Title,
+		StartAt:       startAt,
+		EndAt:         endAt,
+		Memo:          req.Memo,
+		GroupID:       req.GroupID,
+		AssigneeID:    req.AssigneeID,
+		IsShared:      req.IsShared,
+		IsFromGoogle:  req.IsFromGoogle,
+		GoogleEventID: req.GoogleEventID,
+		CreatedBy:     userID,
 	}
 
-	if err := h.eventRepo.Create(r.Context(), event); err != nil {
+	var dbErr error
+	if req.GoogleEventID != nil {
+		dbErr = h.eventRepo.UpsertGoogleEvent(r.Context(), event)
+	} else {
+		dbErr = h.eventRepo.Create(r.Context(), event)
+	}
+	if dbErr != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create event")
 		return
 	}

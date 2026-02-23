@@ -95,6 +95,7 @@ export class GoogleCalendarService {
 
     return {
       id: googleEvent.id,
+      googleEventId: googleEvent.id,
       title: googleEvent.summary || '(No title)',
       startAt,
       endAt,

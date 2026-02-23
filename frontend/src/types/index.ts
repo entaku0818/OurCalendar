@@ -41,6 +41,7 @@ export interface CalendarEvent {
   memo?: string;
   isFromGoogle: boolean;
   isShared: boolean;
+  googleEventId?: string; // Original Google Calendar event ID
   createdBy: string;
   createdAt: Date;
   // Owner info for group events

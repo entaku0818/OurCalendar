@@ -5,6 +5,7 @@ import { OnboardingScreenProps } from '../../navigation/types';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
 import SwipeCard from '../../components/SwipeCard';
 import { useEvents } from '../../store';
+import { apiClient } from '../../services/api';
 
 type Props = OnboardingScreenProps<'SwipeSort'>;
 
@@ -26,16 +27,24 @@ export default function SwipeSortScreen() {
   const handleSwipe = (direction: 'left' | 'right') => {
     if (!currentEvent) return;
 
-    console.log(`[SwipeSortScreen] ========================================`);
-    console.log(`[SwipeSortScreen] handleSwipe called: direction=${direction}`);
-    console.log(`[SwipeSortScreen] Current event: "${currentEvent?.title}" (index: ${currentIndex})`);
-
     const shouldShare = direction === 'right';
-    console.log(`[SwipeSortScreen] Setting isShared=${shouldShare} (${shouldShare ? '共有' : '非公開'})`);
 
     // Update isShared status if it needs to change
     if (currentEvent.isShared !== shouldShare) {
       toggleShared(currentEvent.id);
+    }
+
+    // Sync to backend (fire-and-forget, don't block UX)
+    if (currentEvent.isFromGoogle && currentEvent.googleEventId) {
+      apiClient.createEvent({
+        title: currentEvent.title,
+        startAt: currentEvent.startAt.toISOString(),
+        endAt: currentEvent.endAt.toISOString(),
+        memo: currentEvent.memo,
+        isShared: shouldShare,
+        isFromGoogle: true,
+        googleEventId: currentEvent.googleEventId,
+      }).catch((err) => console.warn('[SwipeSortScreen] Failed to sync event:', err));
     }
 
     // Mark as sorted
@@ -43,16 +52,10 @@ export default function SwipeSortScreen() {
 
     // Move to next
     if (currentIndex < totalCount - 1) {
-      const nextIndex = currentIndex + 1;
-      console.log(`[SwipeSortScreen] Moving to next: index ${nextIndex}`);
-      setCurrentIndex(nextIndex);
+      setCurrentIndex(currentIndex + 1);
     } else {
-      // All events sorted
-      console.log(`[SwipeSortScreen] All events sorted!`);
-      console.log(`[SwipeSortScreen] Navigating to CreateGroup...`);
       navigation.navigate('CreateGroup');
     }
-    console.log(`[SwipeSortScreen] ========================================`);
   };
 
   // If no events to sort, skip to next screen

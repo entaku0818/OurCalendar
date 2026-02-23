@@ -177,6 +177,8 @@ class ApiClient {
     groupId?: string;
     assigneeId?: string;
     isShared?: boolean;
+    isFromGoogle?: boolean;
+    googleEventId?: string;
   }): Promise<any> {
     return this.request('/events', {
       method: 'POST',

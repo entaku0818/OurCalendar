@@ -116,6 +116,22 @@ func (r *EventRepository) Create(ctx context.Context, event *model.Event) error 
 	).Scan(&event.ID)
 }
 
+// UpsertGoogleEvent creates or updates an event identified by google_event_id + created_by.
+func (r *EventRepository) UpsertGoogleEvent(ctx context.Context, event *model.Event) error {
+	now := time.Now()
+	return r.db.Pool.QueryRow(ctx, `
+		INSERT INTO events (group_id, title, start_at, end_at, assignee_id, memo,
+		                    is_from_google, is_shared, google_event_id, created_by, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		ON CONFLICT (google_event_id, created_by) WHERE google_event_id IS NOT NULL
+		DO UPDATE SET is_shared = EXCLUDED.is_shared, updated_at = NOW()
+		RETURNING id
+	`,
+		event.GroupID, event.Title, event.StartAt, event.EndAt, event.AssigneeID, event.Memo,
+		event.IsFromGoogle, event.IsShared, event.GoogleEventID, event.CreatedBy, now, now,
+	).Scan(&event.ID)
+}
+
 func (r *EventRepository) Update(ctx context.Context, event *model.Event) error {
 	event.UpdatedAt = time.Now()
 	_, err := r.db.Pool.Exec(ctx, `
