@@ -87,25 +87,31 @@ resource "google_cloud_run_v2_service" "api" {
       image = "gcr.io/${var.project_id}/ourcalendar-api:latest"
 
       env {
-        name  = "DB_HOST"
-        value = google_sql_database_instance.main.private_ip_address
+        name  = "ENV"
+        value = "production"
       }
 
       env {
-        name  = "DB_NAME"
-        value = google_sql_database.database.name
+        name  = "GOOGLE_CLIENT_ID"
+        value = var.google_client_id
       }
 
+      # SUPABASE_URL is the PostgreSQL connection string used by the backend
       env {
-        name  = "DB_USER"
-        value = google_sql_user.user.name
-      }
-
-      env {
-        name = "DB_PASSWORD"
+        name = "SUPABASE_URL"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.db_password.secret_id
+            secret  = google_secret_manager_secret.supabase_url.secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "JWT_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.jwt_secret.secret_id
             version = "latest"
           }
         }
@@ -129,9 +135,9 @@ resource "google_cloud_run_v2_service_iam_member" "public" {
   member   = "allUsers"
 }
 
-# Secret Manager for DB password
-resource "google_secret_manager_secret" "db_password" {
-  secret_id = "db-password"
+# Secret Manager: SUPABASE_URL (PostgreSQL connection string)
+resource "google_secret_manager_secret" "supabase_url" {
+  secret_id = "supabase-url"
 
   replication {
     auto {}
@@ -140,7 +146,24 @@ resource "google_secret_manager_secret" "db_password" {
   depends_on = [google_project_service.services]
 }
 
-resource "google_secret_manager_secret_version" "db_password" {
-  secret      = google_secret_manager_secret.db_password.id
-  secret_data = var.db_password
+resource "google_secret_manager_secret_version" "supabase_url" {
+  secret = google_secret_manager_secret.supabase_url.id
+  # Format: postgresql://ourcalendar:PASSWORD@PRIVATE_IP:5432/ourcalendar
+  secret_data = "postgresql://${google_sql_user.user.name}:${var.db_password}@${google_sql_database_instance.main.private_ip_address}:5432/${google_sql_database.database.name}"
+}
+
+# Secret Manager: JWT Secret
+resource "google_secret_manager_secret" "jwt_secret" {
+  secret_id = "jwt-secret"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.services]
+}
+
+resource "google_secret_manager_secret_version" "jwt_secret" {
+  secret      = google_secret_manager_secret.jwt_secret.id
+  secret_data = var.jwt_secret
 }

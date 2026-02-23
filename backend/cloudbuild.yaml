@@ -34,6 +34,8 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
+      - '--update-secrets'
+      - 'SUPABASE_URL=supabase-url:latest,JWT_SECRET=jwt-secret:latest'
 
 images:
   - 'gcr.io/$PROJECT_ID/ourcalendar-api:$COMMIT_SHA'

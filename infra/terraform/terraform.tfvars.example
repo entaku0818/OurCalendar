@@ -1,4 +1,6 @@
 # Copy this file to terraform.tfvars and fill in the values
-project_id  = "your-gcp-project-id"
-region      = "asia-northeast1"
-db_password = "your-secure-password"
+project_id       = "your-gcp-project-id"
+region           = "asia-northeast1"
+db_password      = "your-secure-db-password"
+jwt_secret       = "your-secure-jwt-secret-min-32-chars"
+google_client_id = "your-google-oauth-client-id.apps.googleusercontent.com"
