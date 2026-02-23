@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
 import { Avatar, Button } from '../../components';
 import { useAuth } from '../../store';
@@ -21,6 +22,7 @@ export default function ProfileEditScreen() {
   const navigation = useNavigation();
   const { user, signIn } = useAuth();
   const [name, setName] = useState(user?.name || '');
+  const [avatarUri, setAvatarUri] = useState<string | undefined>(user?.avatarUrl ?? undefined);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = async () => {
@@ -32,7 +34,10 @@ export default function ProfileEditScreen() {
     setIsLoading(true);
 
     try {
-      const updatedUser = await apiClient.updateUser({ name: name.trim() });
+      const updatedUser = await apiClient.updateUser({
+        name: name.trim(),
+        avatarUrl: avatarUri,
+      });
 
       if (user) {
         await signIn({ ...user, ...updatedUser });
@@ -48,9 +53,25 @@ export default function ProfileEditScreen() {
     }
   };
 
-  const handleChangeAvatar = () => {
-    // TODO: Implement image picker
-    Alert.alert('準備中', 'アイコン変更機能は準備中です');
+  const handleChangeAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('権限が必要です', '写真へのアクセスを許可してください');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0].base64) {
+      const dataUri = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      setAvatarUri(dataUri);
+    }
   };
 
   return (
@@ -75,7 +96,7 @@ export default function ProfileEditScreen() {
           <View style={styles.avatarSection}>
             <Avatar
               name={name || user?.name}
-              imageUrl={user?.avatarUrl}
+              imageUrl={avatarUri}
               size="xl"
             />
             <TouchableOpacity
