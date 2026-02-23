@@ -137,15 +137,6 @@ export default function ProfileEditScreen() {
               </View>
             )}
 
-            {user?.lineId && (
-              <View style={styles.connectedAccount}>
-                <Text style={styles.connectedLabel}>連携中のアカウント</Text>
-                <View style={styles.connectedItem}>
-                  <Text style={[styles.connectedIcon, styles.lineIcon]}>L</Text>
-                  <Text style={styles.connectedText}>LINEアカウント</Text>
-                </View>
-              </View>
-            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -256,9 +247,6 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     fontWeight: 'bold',
     overflow: 'hidden',
-  },
-  lineIcon: {
-    backgroundColor: '#06C755',
   },
   connectedText: {
     fontSize: fontSize.md,

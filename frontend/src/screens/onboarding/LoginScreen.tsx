@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { OnboardingScreenProps } from '../../navigation/types';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
 import { APP_NAME } from '../../utils/constants';
-import { useGoogleAuth, useLineAuth } from '../../hooks';
+import { useGoogleAuth } from '../../hooks';
 import { useAuth } from '../../store';
 
 type Props = OnboardingScreenProps<'Login'>;
@@ -12,36 +12,19 @@ type Props = OnboardingScreenProps<'Login'>;
 export default function LoginScreen() {
   const navigation = useNavigation<Props['navigation']>();
   const { signIn: authSignIn } = useAuth();
-  const { isLoading: googleLoading, isReady: googleReady, signIn: googleSignIn } = useGoogleAuth();
-  const { isLoading: lineLoading, isReady: lineReady, signIn: lineSignIn } = useLineAuth();
+  const { isLoading, isReady, signIn: googleSignIn } = useGoogleAuth();
 
   const handleGoogleLogin = async () => {
-    console.log('Google login started');
     try {
       const result = await googleSignIn();
-      console.log('Google login result:', result ? 'success' : 'null');
-
       if (result) {
-        console.log('User:', result.user.email);
         await authSignIn(result.user, result.accessToken);
-        console.log('Auth signed in, navigating...');
         navigation.navigate('GoogleConnect');
       }
     } catch (error) {
       console.error('Google login error:', error);
     }
   };
-
-  const handleLineLogin = async () => {
-    const result = await lineSignIn();
-
-    if (result) {
-      await authSignIn(result.user, result.accessToken);
-      navigation.navigate('GoogleConnect');
-    }
-  };
-
-  const isLoading = googleLoading || lineLoading;
 
   return (
     <View style={styles.container}>
@@ -52,26 +35,14 @@ export default function LoginScreen() {
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.googleButton, !googleReady && styles.buttonDisabled]}
+          style={[styles.googleButton, !isReady && styles.buttonDisabled]}
           onPress={handleGoogleLogin}
-          disabled={isLoading || !googleReady}
+          disabled={isLoading || !isReady}
         >
-          {googleLoading ? (
+          {isLoading ? (
             <ActivityIndicator color={colors.text} />
           ) : (
             <Text style={styles.googleButtonText}>Googleでログイン</Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.lineButton, !lineReady && styles.buttonDisabled]}
-          onPress={handleLineLogin}
-          disabled={isLoading || !lineReady}
-        >
-          {lineLoading ? (
-            <ActivityIndicator color={colors.background} />
-          ) : (
-            <Text style={styles.lineButtonText}>LINEでログイン</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -124,19 +95,6 @@ const styles = StyleSheet.create({
   googleButtonText: {
     fontSize: fontSize.md,
     color: colors.text,
-    fontWeight: '600',
-  },
-  lineButton: {
-    backgroundColor: '#06C755',
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    minHeight: 50,
-    justifyContent: 'center',
-  },
-  lineButtonText: {
-    fontSize: fontSize.md,
-    color: colors.background,
     fontWeight: '600',
   },
   terms: {

@@ -4,7 +4,6 @@ export interface User {
   name: string;
   email: string;
   avatarUrl?: string;
-  lineId?: string;
   googleId?: string;
   createdAt: Date;
 }
