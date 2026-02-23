@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.entaku.ourcalendar",
+      "buildNumber": "1",
       "infoPlist": {
         "CFBundleURLTypes": [
           {
@@ -23,7 +24,8 @@
               "com.googleusercontent.apps.912756714814-cldhsd139gvqjkrmgufljpop5b22hms3"
             ]
           }
-        ]
+        ],
+        "NSPhotoLibraryUsageDescription": "プロフィールアイコンを設定するために写真へのアクセスが必要です"
       }
     },
     "android": {
@@ -33,13 +35,15 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.entaku.ourcalendar"
+      "package": "com.entaku.ourcalendar",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-image-picker"
     ]
   }
 }
