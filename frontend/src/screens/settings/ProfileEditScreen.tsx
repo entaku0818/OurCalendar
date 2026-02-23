@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { colors, fontSize, spacing, borderRadius } from '../../utils/theme';
 import { Avatar, Button } from '../../components';
 import { useAuth } from '../../store';
+import { apiClient } from '../../services/api';
 
 export default function ProfileEditScreen() {
   const navigation = useNavigation();
@@ -31,11 +32,10 @@ export default function ProfileEditScreen() {
     setIsLoading(true);
 
     try {
-      // TODO: Update user in backend
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const updatedUser = await apiClient.updateUser({ name: name.trim() });
 
       if (user) {
-        await signIn({ ...user, name: name.trim() });
+        await signIn({ ...user, ...updatedUser });
       }
 
       Alert.alert('成功', 'プロフィールを更新しました', [
